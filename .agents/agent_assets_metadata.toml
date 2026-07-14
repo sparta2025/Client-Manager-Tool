@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "bm5YmfvnY4caXCLUjBDKO"
+uri = "file://exports/lawyer-crm-project.zip"
+type = "unspecified"
+title = "Проект CRM Юриста — полный исходный код"
