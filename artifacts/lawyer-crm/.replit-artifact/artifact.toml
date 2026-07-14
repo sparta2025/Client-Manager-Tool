@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "CRM Юриста"
+version = "1.0.0"
+id = "artifacts/lawyer-crm"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24438
+
+[services.development]
+run = "pnpm --filter @workspace/lawyer-crm run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/lawyer-crm", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/lawyer-crm/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24438"
+BASE_PATH = "/"

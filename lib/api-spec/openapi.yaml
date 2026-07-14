@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: clients
+    description: Client (lawyer's case) operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,90 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /clients:
+    get:
+      operationId: listClients
+      tags: [clients]
+      summary: List clients
+      responses:
+        "200":
+          description: List of clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Client"
+    post:
+      operationId: createClient
+      tags: [clients]
+      summary: Create a client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+  /clients/summary:
+    get:
+      operationId: getClientsSummary
+      tags: [clients]
+      summary: Count of clients per status
+      responses:
+        "200":
+          description: Counts per status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientsSummary"
+  /clients/{id}:
+    patch:
+      operationId: updateClient
+      tags: [clients]
+      summary: Update a client (e.g. change status)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientUpdate"
+      responses:
+        "200":
+          description: Updated client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "404":
+          description: Client not found
+    delete:
+      operationId: deleteClient
+      tags: [clients]
+      summary: Delete a client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Client not found
 components:
   schemas:
     HealthStatus:
@@ -33,4 +119,74 @@ components:
           type: string
       required:
         - status
+    ClientStatus:
+      type: string
+      enum: [new, in_progress, closed]
+    Client:
+      type: object
+      required: [id, name, phone, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        status:
+          $ref: "#/components/schemas/ClientStatus"
+        createdAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+    ClientInput:
+      type: object
+      required: [name, phone]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+          minLength: 1
+        status:
+          $ref: "#/components/schemas/ClientStatus"
+        createdAt:
+          type: string
+          format: date-time
+    ClientUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+          minLength: 1
+        status:
+          $ref: "#/components/schemas/ClientStatus"
+        createdAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+    ClientsSummary:
+      type: object
+      required: [new, in_progress, closed, total]
+      properties:
+        new:
+          type: integer
+        in_progress:
+          type: integer
+        closed:
+          type: integer
+        total:
+          type: integer
 
