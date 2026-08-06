@@ -69,6 +69,131 @@ export const GetClientsSummaryResponse = zod.object({
 
 
 /**
+ * @summary List stages for a client
+ */
+export const ListClientStagesParams = zod.object({
+  "clientId": zod.coerce.number()
+})
+
+export const ListClientStagesResponseItem = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number(),
+  "name": zod.string(),
+  "stageDate": zod.coerce.date(),
+  "content": zod.string().nullish(),
+  "result": zod.string().nullish(),
+  "isCompleted": zod.boolean(),
+  "failureReasons": zod.string().nullish(),
+  "nextPlans": zod.string().nullish(),
+  "closedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListClientStagesResponse = zod.array(ListClientStagesResponseItem)
+
+
+/**
+ * @summary Create a stage for a client
+ */
+export const CreateClientStageParams = zod.object({
+  "clientId": zod.coerce.number()
+})
+
+
+
+
+export const CreateClientStageBody = zod.object({
+  "name": zod.string().min(1),
+  "stageDate": zod.coerce.date(),
+  "content": zod.string().nullish(),
+  "result": zod.string().nullish(),
+  "isCompleted": zod.boolean().optional(),
+  "failureReasons": zod.string().nullish(),
+  "nextPlans": zod.string().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+export const CreateClientStageResponse = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number(),
+  "name": zod.string(),
+  "stageDate": zod.coerce.date(),
+  "content": zod.string().nullish(),
+  "result": zod.string().nullish(),
+  "isCompleted": zod.boolean(),
+  "failureReasons": zod.string().nullish(),
+  "nextPlans": zod.string().nullish(),
+  "closedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Statistics for a single client
+ */
+export const GetClientStatsParams = zod.object({
+  "clientId": zod.coerce.number()
+})
+
+export const GetClientStatsResponse = zod.object({
+  "clientId": zod.number(),
+  "totalStages": zod.number(),
+  "completedStages": zod.number(),
+  "activeStages": zod.number(),
+  "lastStageDate": zod.coerce.date().nullish(),
+  "lastNextPlans": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update a case stage
+ */
+export const UpdateStageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateStageBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "stageDate": zod.coerce.date().optional(),
+  "content": zod.string().nullish(),
+  "result": zod.string().nullish(),
+  "isCompleted": zod.boolean().optional(),
+  "failureReasons": zod.string().nullish(),
+  "nextPlans": zod.string().nullish(),
+  "closedAt": zod.coerce.date().nullish()
+})
+
+export const UpdateStageResponse = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number(),
+  "name": zod.string(),
+  "stageDate": zod.coerce.date(),
+  "content": zod.string().nullish(),
+  "result": zod.string().nullish(),
+  "isCompleted": zod.boolean(),
+  "failureReasons": zod.string().nullish(),
+  "nextPlans": zod.string().nullish(),
+  "closedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a case stage
+ */
+export const DeleteStageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteStageResponse = zod.void()
+
+
+/**
  * @summary Update a client (e.g. change status)
  */
 export const UpdateClientParams = zod.object({

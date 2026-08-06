@@ -20,8 +20,12 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  CaseStage,
+  CaseStageInput,
+  CaseStageUpdate,
   Client,
   ClientInput,
+  ClientStats,
   ClientUpdate,
   ClientsSummary,
   HealthStatus
@@ -356,6 +360,375 @@ export function useGetClientsSummary<TData = Awaited<ReturnType<typeof getClient
 
 
 
+
+export const getListClientStagesUrl = (clientId: number,) => {
+
+
+
+
+  return `/api/clients/${clientId}/stages`
+}
+
+/**
+ * @summary List stages for a client
+ */
+export const listClientStages = async (clientId: number, options?: RequestInit): Promise<CaseStage[]> => {
+
+  return customFetch<CaseStage[]>(getListClientStagesUrl(clientId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClientStagesQueryKey = (clientId: number,) => {
+    return [
+    `/api/clients/${clientId}/stages`
+    ] as const;
+    }
+
+
+export const getListClientStagesQueryOptions = <TData = Awaited<ReturnType<typeof listClientStages>>, TError = ErrorType<void>>(clientId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientStages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClientStagesQueryKey(clientId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClientStages>>> = ({ signal }) => listClientStages(clientId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: clientId !== null && clientId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClientStages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListClientStagesQueryResult = NonNullable<Awaited<ReturnType<typeof listClientStages>>>
+export type ListClientStagesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List stages for a client
+ */
+
+export function useListClientStages<TData = Awaited<ReturnType<typeof listClientStages>>, TError = ErrorType<void>>(
+ clientId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClientStages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListClientStagesQueryOptions(clientId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateClientStageUrl = (clientId: number,) => {
+
+
+
+
+  return `/api/clients/${clientId}/stages`
+}
+
+/**
+ * @summary Create a stage for a client
+ */
+export const createClientStage = async (clientId: number,
+    caseStageInput: CaseStageInput, options?: RequestInit): Promise<CaseStage> => {
+
+  return customFetch<CaseStage>(getCreateClientStageUrl(clientId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(caseStageInput)
+  }
+);}
+
+
+
+
+
+export const getCreateClientStageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClientStage>>, TError,{clientId: number;data: BodyType<CaseStageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createClientStage>>, TError,{clientId: number;data: BodyType<CaseStageInput>}, TContext> => {
+
+const mutationKey = ['createClientStage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createClientStage>>, {clientId: number;data: BodyType<CaseStageInput>}> = (props) => {
+          const {clientId,data} = props ?? {};
+
+          return  createClientStage(clientId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateClientStageMutationResult = NonNullable<Awaited<ReturnType<typeof createClientStage>>>
+    export type CreateClientStageMutationBody = BodyType<CaseStageInput>
+    export type CreateClientStageMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a stage for a client
+ */
+export const useCreateClientStage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClientStage>>, TError,{clientId: number;data: BodyType<CaseStageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createClientStage>>,
+        TError,
+        {clientId: number;data: BodyType<CaseStageInput>},
+        TContext
+      > => {
+      return useMutation(getCreateClientStageMutationOptions(options));
+    }
+
+export const getGetClientStatsUrl = (clientId: number,) => {
+
+
+
+
+  return `/api/clients/${clientId}/stats`
+}
+
+/**
+ * @summary Statistics for a single client
+ */
+export const getClientStats = async (clientId: number, options?: RequestInit): Promise<ClientStats> => {
+
+  return customFetch<ClientStats>(getGetClientStatsUrl(clientId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClientStatsQueryKey = (clientId: number,) => {
+    return [
+    `/api/clients/${clientId}/stats`
+    ] as const;
+    }
+
+
+export const getGetClientStatsQueryOptions = <TData = Awaited<ReturnType<typeof getClientStats>>, TError = ErrorType<void>>(clientId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClientStatsQueryKey(clientId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClientStats>>> = ({ signal }) => getClientStats(clientId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: clientId !== null && clientId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClientStats>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetClientStatsQueryResult = NonNullable<Awaited<ReturnType<typeof getClientStats>>>
+export type GetClientStatsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Statistics for a single client
+ */
+
+export function useGetClientStats<TData = Awaited<ReturnType<typeof getClientStats>>, TError = ErrorType<void>>(
+ clientId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClientStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetClientStatsQueryOptions(clientId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateStageUrl = (id: number,) => {
+
+
+
+
+  return `/api/stages/${id}`
+}
+
+/**
+ * @summary Update a case stage
+ */
+export const updateStage = async (id: number,
+    caseStageUpdate: CaseStageUpdate, options?: RequestInit): Promise<CaseStage> => {
+
+  return customFetch<CaseStage>(getUpdateStageUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(caseStageUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateStageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStage>>, TError,{id: number;data: BodyType<CaseStageUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateStage>>, TError,{id: number;data: BodyType<CaseStageUpdate>}, TContext> => {
+
+const mutationKey = ['updateStage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateStage>>, {id: number;data: BodyType<CaseStageUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateStage(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateStageMutationResult = NonNullable<Awaited<ReturnType<typeof updateStage>>>
+    export type UpdateStageMutationBody = BodyType<CaseStageUpdate>
+    export type UpdateStageMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a case stage
+ */
+export const useUpdateStage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStage>>, TError,{id: number;data: BodyType<CaseStageUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateStage>>,
+        TError,
+        {id: number;data: BodyType<CaseStageUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateStageMutationOptions(options));
+    }
+
+export const getDeleteStageUrl = (id: number,) => {
+
+
+
+
+  return `/api/stages/${id}`
+}
+
+/**
+ * @summary Delete a case stage
+ */
+export const deleteStage = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteStageUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteStageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStage>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteStage>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteStage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteStage>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteStage(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteStageMutationResult = NonNullable<Awaited<ReturnType<typeof deleteStage>>>
+
+    export type DeleteStageMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a case stage
+ */
+export const useDeleteStage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStage>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteStage>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteStageMutationOptions(options));
+    }
 
 export const getUpdateClientUrl = (id: number,) => {
 

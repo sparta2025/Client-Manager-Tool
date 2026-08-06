@@ -6,9 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './caseStage';
+export * from './caseStageInput';
+export * from './caseStageUpdate';
 export * from './client';
 export * from './clientInput';
 export * from './clientsSummary';
+export * from './clientStats';
 export * from './clientStatus';
 export * from './clientUpdate';
 export * from './healthStatus';

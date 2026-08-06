@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import Dashboard from '@/pages/dashboard';
+import ClientDetailPage from '@/pages/client-detail';
 
 const queryClient = new QueryClient();
 
@@ -20,6 +21,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/clients/:id" component={ClientDetailPage} />
       <Route component={NotFound} />
     </Switch>
   );

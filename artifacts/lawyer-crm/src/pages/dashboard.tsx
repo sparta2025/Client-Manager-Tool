@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { 
   useListClients, 
   useGetClientsSummary, 
@@ -55,6 +56,7 @@ export default function Dashboard() {
   const { data: clients, isLoading: isClientsLoading } = useListClients();
   const { data: summary, isLoading: isSummaryLoading } = useGetClientsSummary();
   
+  const [, setLocation] = useLocation();
   const updateClient = useUpdateClient();
   const deleteClient = useDeleteClient();
 
@@ -153,10 +155,14 @@ export default function Dashboard() {
                 </TableRow>
               ) : (
                 clients?.map((client) => (
-                  <TableRow key={client.id} className="group transition-colors hover:bg-muted/50">
+                  <TableRow 
+                    key={client.id} 
+                    className="group transition-colors hover:bg-muted/50 cursor-pointer"
+                    onClick={() => setLocation(`/clients/${client.id}`)}
+                  >
                     <TableCell className="font-medium text-primary py-4">{client.name}</TableCell>
                     <TableCell className="text-muted-foreground tabular-nums py-4">{client.phone}</TableCell>
-                    <TableCell className="py-4">
+                    <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button className="inline-flex items-center gap-1.5 focus:outline-none rounded-full ring-offset-background focus:ring-2 focus:ring-ring">
@@ -189,14 +195,17 @@ export default function Dashboard() {
                         ? format(new Date(client.closedAt), "d MMMM yyyy, HH:mm", { locale: ru })
                         : "—"}
                     </TableCell>
-                    <TableCell className="text-right py-4">
+                    <TableCell className="text-right py-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <EditClientModal client={client} />
                         <Button 
                           variant="ghost" 
                           size="icon" 
                           className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(client.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(client.id);
+                          }}
                           title="Удалить дело"
                         >
                           <Trash2 className="h-4 w-4" />

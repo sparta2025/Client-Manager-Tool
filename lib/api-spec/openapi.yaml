@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: clients
     description: Client (lawyer's case) operations
+  - name: stages
+    description: Case stage journal operations
 paths:
   /healthz:
     get:
@@ -69,6 +71,114 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ClientsSummary"
+  /clients/{clientId}/stages:
+    get:
+      operationId: listClientStages
+      tags: [stages]
+      summary: List stages for a client
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of stages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CaseStage"
+        "404":
+          description: Client not found
+    post:
+      operationId: createClientStage
+      tags: [stages]
+      summary: Create a stage for a client
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaseStageInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseStage"
+        "404":
+          description: Client not found
+  /clients/{clientId}/stats:
+    get:
+      operationId: getClientStats
+      tags: [stages]
+      summary: Statistics for a single client
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Client statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientStats"
+        "404":
+          description: Client not found
+  /stages/{id}:
+    patch:
+      operationId: updateStage
+      tags: [stages]
+      summary: Update a case stage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaseStageUpdate"
+      responses:
+        "200":
+          description: Updated stage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseStage"
+        "404":
+          description: Stage not found
+    delete:
+      operationId: deleteStage
+      tags: [stages]
+      summary: Delete a case stage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Stage not found
   /clients/{id}:
     patch:
       operationId: updateClient
@@ -176,6 +286,117 @@ components:
         closedAt:
           type: string
           format: date-time
+          nullable: true
+    CaseStage:
+      type: object
+      required: [id, clientId, name, stageDate, isCompleted, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        clientId:
+          type: integer
+        name:
+          type: string
+        stageDate:
+          type: string
+          format: date-time
+        content:
+          type: string
+          nullable: true
+        result:
+          type: string
+          nullable: true
+        isCompleted:
+          type: boolean
+        failureReasons:
+          type: string
+          nullable: true
+        nextPlans:
+          type: string
+          nullable: true
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CaseStageInput:
+      type: object
+      required: [name, stageDate]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        stageDate:
+          type: string
+          format: date-time
+        content:
+          type: string
+          nullable: true
+        result:
+          type: string
+          nullable: true
+        isCompleted:
+          type: boolean
+        failureReasons:
+          type: string
+          nullable: true
+        nextPlans:
+          type: string
+          nullable: true
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+    CaseStageUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        stageDate:
+          type: string
+          format: date-time
+        content:
+          type: string
+          nullable: true
+        result:
+          type: string
+          nullable: true
+        isCompleted:
+          type: boolean
+        failureReasons:
+          type: string
+          nullable: true
+        nextPlans:
+          type: string
+          nullable: true
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+    ClientStats:
+      type: object
+      required: [clientId, totalStages, completedStages, activeStages]
+      properties:
+        clientId:
+          type: integer
+        totalStages:
+          type: integer
+        completedStages:
+          type: integer
+        activeStages:
+          type: integer
+        lastStageDate:
+          type: string
+          format: date-time
+          nullable: true
+        lastNextPlans:
+          type: string
           nullable: true
     ClientsSummary:
       type: object

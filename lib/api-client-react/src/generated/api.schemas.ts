@@ -47,6 +47,54 @@ export interface ClientUpdate {
   closedAt?: string | null;
 }
 
+export interface CaseStage {
+  id: number;
+  clientId: number;
+  name: string;
+  stageDate: string;
+  content?: string | null;
+  result?: string | null;
+  isCompleted: boolean;
+  failureReasons?: string | null;
+  nextPlans?: string | null;
+  closedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CaseStageInput {
+  /** @minLength 1 */
+  name: string;
+  stageDate: string;
+  content?: string | null;
+  result?: string | null;
+  isCompleted?: boolean;
+  failureReasons?: string | null;
+  nextPlans?: string | null;
+  closedAt?: string | null;
+}
+
+export interface CaseStageUpdate {
+  /** @minLength 1 */
+  name?: string;
+  stageDate?: string;
+  content?: string | null;
+  result?: string | null;
+  isCompleted?: boolean;
+  failureReasons?: string | null;
+  nextPlans?: string | null;
+  closedAt?: string | null;
+}
+
+export interface ClientStats {
+  clientId: number;
+  totalStages: number;
+  completedStages: number;
+  activeStages: number;
+  lastStageDate?: string | null;
+  lastNextPlans?: string | null;
+}
+
 export interface ClientsSummary {
   new: number;
   in_progress: number;
