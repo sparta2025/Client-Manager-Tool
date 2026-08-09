@@ -69,8 +69,11 @@ router.post("/clients/:clientId/stages", async (req, res): Promise<void> => {
       content: parsed.data.content ?? null,
       result: parsed.data.result ?? null,
       isCompleted: parsed.data.isCompleted ?? false,
+      isUrgent: parsed.data.isUrgent ?? false,
       failureReasons: parsed.data.failureReasons ?? null,
       nextPlans: parsed.data.nextPlans ?? null,
+      controlDate: parsed.data.controlDate ? new Date(parsed.data.controlDate) : null,
+      nextControlDate: parsed.data.nextControlDate ? new Date(parsed.data.nextControlDate) : null,
       closedAt: parsed.data.closedAt ? new Date(parsed.data.closedAt) : null,
     })
     .returning();
@@ -154,10 +157,12 @@ router.patch("/stages/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const { stageDate, closedAt, ...rest } = parsed.data;
+  const { stageDate, closedAt, controlDate, nextControlDate, ...rest } = parsed.data;
   const updates: Partial<typeof caseStagesTable.$inferInsert> = { ...rest };
   if (stageDate !== undefined) updates.stageDate = new Date(stageDate);
   if (closedAt !== undefined) updates.closedAt = closedAt ? new Date(closedAt) : null;
+  if (controlDate !== undefined) updates.controlDate = controlDate ? new Date(controlDate) : null;
+  if (nextControlDate !== undefined) updates.nextControlDate = nextControlDate ? new Date(nextControlDate) : null;
 
   const [stage] = await db
     .update(caseStagesTable)

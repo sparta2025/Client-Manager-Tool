@@ -289,7 +289,7 @@ components:
           nullable: true
     CaseStage:
       type: object
-      required: [id, clientId, name, stageDate, isCompleted, createdAt, updatedAt]
+      required: [id, clientId, name, stageDate, isCompleted, isUrgent, createdAt, updatedAt]
       properties:
         id:
           type: integer
@@ -308,12 +308,24 @@ components:
           nullable: true
         isCompleted:
           type: boolean
+        isUrgent:
+          type: boolean
         failureReasons:
           type: string
           nullable: true
         nextPlans:
           type: string
           nullable: true
+        controlDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: Дата контроля текущего этапа
+        nextControlDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: Дата контроля будущей задачи
         closedAt:
           type: string
           format: date-time
@@ -342,11 +354,21 @@ components:
           nullable: true
         isCompleted:
           type: boolean
+        isUrgent:
+          type: boolean
         failureReasons:
           type: string
           nullable: true
         nextPlans:
           type: string
+          nullable: true
+        controlDate:
+          type: string
+          format: date-time
+          nullable: true
+        nextControlDate:
+          type: string
+          format: date-time
           nullable: true
         closedAt:
           type: string
@@ -369,11 +391,21 @@ components:
           nullable: true
         isCompleted:
           type: boolean
+        isUrgent:
+          type: boolean
         failureReasons:
           type: string
           nullable: true
         nextPlans:
           type: string
+          nullable: true
+        controlDate:
+          type: string
+          format: date-time
+          nullable: true
+        nextControlDate:
+          type: string
+          format: date-time
           nullable: true
         closedAt:
           type: string

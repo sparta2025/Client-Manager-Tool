@@ -14,8 +14,13 @@ export interface CaseStage {
   content?: string | null;
   result?: string | null;
   isCompleted: boolean;
+  isUrgent: boolean;
   failureReasons?: string | null;
   nextPlans?: string | null;
+  /** Дата контроля текущего этапа */
+  controlDate?: Date | null;
+  /** Дата контроля будущей задачи */
+  nextControlDate?: Date | null;
   closedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;

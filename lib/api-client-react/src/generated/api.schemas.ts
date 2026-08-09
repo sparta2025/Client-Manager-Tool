@@ -55,8 +55,13 @@ export interface CaseStage {
   content?: string | null;
   result?: string | null;
   isCompleted: boolean;
+  isUrgent: boolean;
   failureReasons?: string | null;
   nextPlans?: string | null;
+  /** Дата контроля текущего этапа */
+  controlDate?: string | null;
+  /** Дата контроля будущей задачи */
+  nextControlDate?: string | null;
   closedAt?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -69,8 +74,11 @@ export interface CaseStageInput {
   content?: string | null;
   result?: string | null;
   isCompleted?: boolean;
+  isUrgent?: boolean;
   failureReasons?: string | null;
   nextPlans?: string | null;
+  controlDate?: string | null;
+  nextControlDate?: string | null;
   closedAt?: string | null;
 }
 
@@ -81,8 +89,11 @@ export interface CaseStageUpdate {
   content?: string | null;
   result?: string | null;
   isCompleted?: boolean;
+  isUrgent?: boolean;
   failureReasons?: string | null;
   nextPlans?: string | null;
+  controlDate?: string | null;
+  nextControlDate?: string | null;
   closedAt?: string | null;
 }
 

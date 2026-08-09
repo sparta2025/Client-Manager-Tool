@@ -83,8 +83,11 @@ export const ListClientStagesResponseItem = zod.object({
   "content": zod.string().nullish(),
   "result": zod.string().nullish(),
   "isCompleted": zod.boolean(),
+  "isUrgent": zod.boolean(),
   "failureReasons": zod.string().nullish(),
   "nextPlans": zod.string().nullish(),
+  "controlDate": zod.coerce.date().nullish().describe('Дата контроля текущего этапа'),
+  "nextControlDate": zod.coerce.date().nullish().describe('Дата контроля будущей задачи'),
   "closedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -108,8 +111,11 @@ export const CreateClientStageBody = zod.object({
   "content": zod.string().nullish(),
   "result": zod.string().nullish(),
   "isCompleted": zod.boolean().optional(),
+  "isUrgent": zod.boolean().optional(),
   "failureReasons": zod.string().nullish(),
   "nextPlans": zod.string().nullish(),
+  "controlDate": zod.coerce.date().nullish(),
+  "nextControlDate": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
 
@@ -121,8 +127,11 @@ export const CreateClientStageResponse = zod.object({
   "content": zod.string().nullish(),
   "result": zod.string().nullish(),
   "isCompleted": zod.boolean(),
+  "isUrgent": zod.boolean(),
   "failureReasons": zod.string().nullish(),
   "nextPlans": zod.string().nullish(),
+  "controlDate": zod.coerce.date().nullish().describe('Дата контроля текущего этапа'),
+  "nextControlDate": zod.coerce.date().nullish().describe('Дата контроля будущей задачи'),
   "closedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -162,8 +171,11 @@ export const UpdateStageBody = zod.object({
   "content": zod.string().nullish(),
   "result": zod.string().nullish(),
   "isCompleted": zod.boolean().optional(),
+  "isUrgent": zod.boolean().optional(),
   "failureReasons": zod.string().nullish(),
   "nextPlans": zod.string().nullish(),
+  "controlDate": zod.coerce.date().nullish(),
+  "nextControlDate": zod.coerce.date().nullish(),
   "closedAt": zod.coerce.date().nullish()
 })
 
@@ -175,8 +187,11 @@ export const UpdateStageResponse = zod.object({
   "content": zod.string().nullish(),
   "result": zod.string().nullish(),
   "isCompleted": zod.boolean(),
+  "isUrgent": zod.boolean(),
   "failureReasons": zod.string().nullish(),
   "nextPlans": zod.string().nullish(),
+  "controlDate": zod.coerce.date().nullish().describe('Дата контроля текущего этапа'),
+  "nextControlDate": zod.coerce.date().nullish().describe('Дата контроля будущей задачи'),
   "closedAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()

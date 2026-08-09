@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { 
-  ArrowLeft, Plus, Pencil, Trash2, CheckCircle2, Clock, FileText, Target, AlertTriangle, ListTodo
+  ArrowLeft, Plus, Pencil, Trash2, CheckCircle2, Clock, FileText, Target, AlertTriangle, ListTodo, CalendarClock, CalendarCheck
 } from "lucide-react";
 import { toast } from "sonner";
 

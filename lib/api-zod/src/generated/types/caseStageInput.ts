@@ -13,7 +13,10 @@ export interface CaseStageInput {
   content?: string | null;
   result?: string | null;
   isCompleted?: boolean;
+  isUrgent?: boolean;
   failureReasons?: string | null;
   nextPlans?: string | null;
+  controlDate?: Date | null;
+  nextControlDate?: Date | null;
   closedAt?: Date | null;
 }
