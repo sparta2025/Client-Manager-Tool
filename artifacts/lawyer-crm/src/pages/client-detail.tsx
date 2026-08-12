@@ -76,6 +76,16 @@ export default function ClientDetailPage() {
     );
   }
 
+  const isReadOnly = client.status === "closed";
+  const sortedStages = [...(stages ?? [])].sort((a, b) => {
+    const priority = (stage: CaseStage) => {
+      if (!stage.isCompleted && stage.isUrgent) return 0;
+      if (!stage.isCompleted) return 1;
+      return 2;
+    };
+    return priority(a) - priority(b) || new Date(b.stageDate).getTime() - new Date(a.stageDate).getTime();
+  });
+
   const handleDeleteStage = (id: number) => {
     if (!confirm("Вы уверены, что хотите удалить этот этап?")) return;
     deleteStage.mutate({ id }, {
@@ -120,7 +130,7 @@ export default function ClientDetailPage() {
               </p>
             </div>
             
-            <StageModal clientId={clientId} clientName={client.name} mode="create" />
+            {!isReadOnly && <StageModal clientId={clientId} clientName={client.name} mode="create" />}
           </div>
         </div>
 
@@ -161,21 +171,29 @@ export default function ClientDetailPage() {
         {/* Stages Journal */}
         <section className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200 fill-mode-both">
           <h2 className="text-2xl font-serif font-medium text-primary border-b border-border pb-4">
-            Журнал этапов
+            Журнал этапов {isReadOnly && <span className="text-sm font-sans font-normal text-muted-foreground">(только чтение)</span>}
           </h2>
 
           {isStagesLoading ? (
             <div className="text-center py-10 text-muted-foreground">Загрузка этапов...</div>
           ) : stages?.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground bg-card border rounded-2xl">
-              У этого клиента пока нет ни одного этапа работы. Добавьте первый этап, чтобы начать.
+              {isReadOnly
+                ? "У этого закрытого клиента пока нет записанных этапов."
+                : "У этого клиента пока нет ни одного этапа работы. Добавьте первый этап, чтобы начать."}
             </div>
           ) : (
             <div className="space-y-4">
-              {stages?.map(stage => (
+              {sortedStages.map(stage => {
+                const controlDateIsOverdue = Boolean(
+                  stage.controlDate && !stage.isCompleted && new Date(stage.controlDate).getTime() < Date.now(),
+                );
+                return (
                 <Card 
                   key={stage.id} 
-                  className={`overflow-hidden relative transition-colors bg-card hover:border-primary/20 ${stage.isCompleted ? 'border-l-4 border-l-[#15803d]' : 'border-l-4 border-l-[#0369a1]'}`}
+                  className={`overflow-hidden relative transition-colors bg-card hover:border-primary/20 border-l-4 ${
+                    stage.isUrgent ? "border-l-[#b45309]" : stage.isCompleted ? "border-l-[#15803d]" : "border-l-[#0369a1]"
+                  }`}
                 >
                   <CardHeader className="pb-3 border-b border-border/50 bg-muted/20">
                     <div className="flex justify-between items-start">
@@ -186,27 +204,44 @@ export default function ClientDetailPage() {
                         <CardTitle className="text-xl font-serif text-primary">
                           {stage.name}
                         </CardTitle>
-                        <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-                          <Clock className="w-3.5 h-3.5" />
-                          {format(new Date(stage.stageDate), "d MMMM yyyy, HH:mm", { locale: ru })}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5" />
+                            {format(new Date(stage.stageDate), "d MMMM yyyy, HH:mm", { locale: ru })}
+                          </span>
+                          {stage.controlDate && (
+                            <span className={`flex items-center gap-1.5 ${controlDateIsOverdue ? "text-destructive font-medium" : ""}`}>
+                              <CalendarClock className="w-3.5 h-3.5" />
+                              Контроль: {format(new Date(stage.controlDate), "d MMMM yyyy, HH:mm", { locale: ru })}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-3">
-                        <Badge variant={stage.isCompleted ? "closed" : "in_progress"} className="shadow-sm">
-                          {stage.isCompleted ? "Завершён" : "В работе"}
-                        </Badge>
-                        <div className="flex items-center gap-1">
-                          <StageModal clientId={clientId} clientName={client.name} mode="edit" stage={stage} />
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDeleteStage(stage.id)}
-                            title="Удалить этап"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <div className="flex flex-wrap justify-end items-center gap-2">
+                          <Badge variant={stage.isCompleted ? "closed" : "in_progress"} className="shadow-sm">
+                            {stage.isCompleted ? "Завершён" : "В работе"}
+                          </Badge>
+                          {stage.isUrgent && (
+                            <Badge variant="destructive" className="font-bold shadow-sm">
+                              Срочно
+                            </Badge>
+                          )}
                         </div>
+                        {!isReadOnly && (
+                          <div className="flex items-center gap-1">
+                            <StageModal clientId={clientId} clientName={client.name} mode="edit" stage={stage} />
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDeleteStage(stage.id)}
+                              title="Удалить этап"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
@@ -251,6 +286,15 @@ export default function ClientDetailPage() {
                             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{stage.nextPlans}</p>
                           </div>
                         )}
+                        {stage.nextControlDate && (
+                          <div className="flex items-center gap-1.5 text-sm text-primary/80">
+                            <CalendarCheck className="w-4 h-4 text-[#0369a1]" />
+                            <span>
+                              Контроль следующего шага:{" "}
+                              {format(new Date(stage.nextControlDate), "d MMMM yyyy, HH:mm", { locale: ru })}
+                            </span>
+                          </div>
+                        )}
                         {!stage.isCompleted && stage.failureReasons && (
                           <div className="mb-4">
                             <div className="flex items-center gap-1.5 text-sm font-medium text-destructive mb-1.5">
@@ -275,7 +319,8 @@ export default function ClientDetailPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
@@ -318,8 +363,11 @@ function StageModal({
   const [content, setContent] = useState(stage?.content || "");
   const [result, setResult] = useState(stage?.result || "");
   const [isCompleted, setIsCompleted] = useState(stage?.isCompleted || false);
+  const [isUrgent, setIsUrgent] = useState(stage?.isUrgent || false);
   const [failureReasons, setFailureReasons] = useState(stage?.failureReasons || "");
   const [nextPlans, setNextPlans] = useState(stage?.nextPlans || "");
+  const [controlDate, setControlDate] = useState(toDateTimeLocalValue(stage?.controlDate) || "");
+  const [nextControlDate, setNextControlDate] = useState(toDateTimeLocalValue(stage?.nextControlDate) || "");
   const [closedAt, setClosedAt] = useState(toDateTimeLocalValue(stage?.closedAt) || "");
 
   const queryClient = useQueryClient();
@@ -333,8 +381,11 @@ function StageModal({
       setContent(stage.content || "");
       setResult(stage.result || "");
       setIsCompleted(stage.isCompleted);
+      setIsUrgent(stage.isUrgent);
       setFailureReasons(stage.failureReasons || "");
       setNextPlans(stage.nextPlans || "");
+      setControlDate(toDateTimeLocalValue(stage.controlDate) || "");
+      setNextControlDate(toDateTimeLocalValue(stage.nextControlDate) || "");
       setClosedAt(toDateTimeLocalValue(stage.closedAt) || "");
     } else if (next && mode === "create") {
       setName("");
@@ -342,8 +393,11 @@ function StageModal({
       setContent("");
       setResult("");
       setIsCompleted(false);
+      setIsUrgent(false);
       setFailureReasons("");
       setNextPlans("");
+      setControlDate("");
+      setNextControlDate("");
       setClosedAt("");
     }
     setOpen(next);
@@ -362,8 +416,11 @@ function StageModal({
       content: content.trim() || null,
       result: result.trim() || null,
       isCompleted,
+      isUrgent,
       failureReasons: failureReasons.trim() || null,
       nextPlans: nextPlans.trim() || null,
+      controlDate: fromDateTimeLocalValue(controlDate),
+      nextControlDate: fromDateTimeLocalValue(nextControlDate),
       closedAt: closedAt ? fromDateTimeLocalValue(closedAt) : null,
     };
 
@@ -429,6 +486,18 @@ function StageModal({
                 className="bg-muted/30 focus:bg-background h-11"
               />
             </div>
+
+            <div className="md:col-span-2 flex items-center gap-3 p-3 border rounded-lg bg-amber-50/60 border-amber-200/70">
+              <Switch
+                id="stage-urgent"
+                checked={isUrgent}
+                onCheckedChange={setIsUrgent}
+              />
+              <div className="space-y-0.5">
+                <Label htmlFor="stage-urgent" className="text-base cursor-pointer text-amber-900 font-semibold">Срочно</Label>
+                <p className="text-sm text-amber-800/80">Отметьте, если этап требует немедленного внимания.</p>
+              </div>
+            </div>
             
             <div className="space-y-2">
               <Label htmlFor="stage-date" className="text-primary font-medium">Дата этапа *</Label>
@@ -438,6 +507,30 @@ function StageModal({
                 step={60}
                 value={stageDate}
                 onChange={(e) => setStageDate(e.target.value)}
+                className="bg-muted/30 focus:bg-background h-11"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="stage-control-date" className="text-primary font-medium">Дата контроля этапа</Label>
+              <Input
+                id="stage-control-date"
+                type="datetime-local"
+                step={60}
+                value={controlDate}
+                onChange={(e) => setControlDate(e.target.value)}
+                className="bg-muted/30 focus:bg-background h-11"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="stage-next-control-date" className="text-primary font-medium">Дата контроля следующего шага</Label>
+              <Input
+                id="stage-next-control-date"
+                type="datetime-local"
+                step={60}
+                value={nextControlDate}
+                onChange={(e) => setNextControlDate(e.target.value)}
                 className="bg-muted/30 focus:bg-background h-11"
               />
             </div>
