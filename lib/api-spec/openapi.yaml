@@ -14,6 +14,8 @@ tags:
     description: Client (lawyer's case) operations
   - name: stages
     description: Case stage journal operations
+  - name: ai
+    description: AI assistants for planning and deadline reminders
 paths:
   /healthz:
     get:
@@ -220,6 +222,50 @@ paths:
           description: Deleted
         "404":
           description: Client not found
+  /ai/clients/{clientId}/preliminary-plan:
+    post:
+      operationId: createPreliminaryPlan
+      tags: [ai]
+      summary: Create a preliminary case plan with the AI assistant
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Generated preliminary plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreliminaryPlan"
+        "404":
+          description: Client not found
+        "409":
+          description: The client is not new
+  /ai/clients/{clientId}/secretary-review:
+    get:
+      operationId: getSecretaryReview
+      tags: [ai]
+      summary: Review deadlines and urgency with the AI secretary
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Generated secretary review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecretaryReview"
+        "404":
+          description: Client not found
+        "409":
+          description: The client is closed
 components:
   schemas:
     HealthStatus:
@@ -442,4 +488,83 @@ components:
           type: integer
         total:
           type: integer
+    PreliminaryPlan:
+      type: object
+      required: [clientId, model, introduction, stages]
+      properties:
+        clientId:
+          type: integer
+        model:
+          type: string
+        introduction:
+          type: string
+        stages:
+          type: array
+          items:
+            $ref: "#/components/schemas/PreliminaryPlanStage"
+    PreliminaryPlanStage:
+      type: object
+      required: [name, stageDate, content, isUrgent]
+      properties:
+        name:
+          type: string
+        stageDate:
+          type: string
+          format: date-time
+        content:
+          type: string
+        result:
+          type: string
+          nullable: true
+        isUrgent:
+          type: boolean
+        controlDate:
+          type: string
+          format: date-time
+          nullable: true
+        nextControlDate:
+          type: string
+          format: date-time
+          nullable: true
+        nextPlans:
+          type: string
+          nullable: true
+    SecretaryReview:
+      type: object
+      required: [clientId, model, headline, priority, items]
+      properties:
+        clientId:
+          type: integer
+        model:
+          type: string
+        headline:
+          type: string
+        priority:
+          type: string
+          enum: [normal, attention, urgent]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecretaryReviewItem"
+    SecretaryReviewItem:
+      type: object
+      required: [stageId, stageName, type, message, isUrgent, isCompleted]
+      properties:
+        stageId:
+          type: integer
+        stageName:
+          type: string
+        type:
+          type: string
+          enum: [overdue, urgent, upcoming]
+        message:
+          type: string
+        controlDate:
+          type: string
+          format: date-time
+          nullable: true
+        isUrgent:
+          type: boolean
+        isCompleted:
+          type: boolean
 

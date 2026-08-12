@@ -248,3 +248,51 @@ export const DeleteClientParams = zod.object({
 export const DeleteClientResponse = zod.void()
 
 
+/**
+ * @summary Create a preliminary case plan with the AI assistant
+ */
+export const CreatePreliminaryPlanParams = zod.object({
+  "clientId": zod.coerce.number()
+})
+
+export const CreatePreliminaryPlanResponse = zod.object({
+  "clientId": zod.number(),
+  "model": zod.string(),
+  "introduction": zod.string(),
+  "stages": zod.array(zod.object({
+  "name": zod.string(),
+  "stageDate": zod.coerce.date(),
+  "content": zod.string(),
+  "result": zod.string().nullish(),
+  "isUrgent": zod.boolean(),
+  "controlDate": zod.coerce.date().nullish(),
+  "nextControlDate": zod.coerce.date().nullish(),
+  "nextPlans": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary Review deadlines and urgency with the AI secretary
+ */
+export const GetSecretaryReviewParams = zod.object({
+  "clientId": zod.coerce.number()
+})
+
+export const GetSecretaryReviewResponse = zod.object({
+  "clientId": zod.number(),
+  "model": zod.string(),
+  "headline": zod.string(),
+  "priority": zod.enum(['normal', 'attention', 'urgent']),
+  "items": zod.array(zod.object({
+  "stageId": zod.number(),
+  "stageName": zod.string(),
+  "type": zod.enum(['overdue', 'urgent', 'upcoming']),
+  "message": zod.string(),
+  "controlDate": zod.coerce.date().nullish(),
+  "isUrgent": zod.boolean(),
+  "isCompleted": zod.boolean()
+}))
+})
+
+

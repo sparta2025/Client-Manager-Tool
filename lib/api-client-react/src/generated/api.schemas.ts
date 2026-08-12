@@ -113,3 +113,57 @@ export interface ClientsSummary {
   total: number;
 }
 
+export interface PreliminaryPlanStage {
+  name: string;
+  stageDate: string;
+  content: string;
+  result?: string | null;
+  isUrgent: boolean;
+  controlDate?: string | null;
+  nextControlDate?: string | null;
+  nextPlans?: string | null;
+}
+
+export interface PreliminaryPlan {
+  clientId: number;
+  model: string;
+  introduction: string;
+  stages: PreliminaryPlanStage[];
+}
+
+export type SecretaryReviewPriority = typeof SecretaryReviewPriority[keyof typeof SecretaryReviewPriority];
+
+
+export const SecretaryReviewPriority = {
+  normal: 'normal',
+  attention: 'attention',
+  urgent: 'urgent',
+} as const;
+
+export type SecretaryReviewItemType = typeof SecretaryReviewItemType[keyof typeof SecretaryReviewItemType];
+
+
+export const SecretaryReviewItemType = {
+  overdue: 'overdue',
+  urgent: 'urgent',
+  upcoming: 'upcoming',
+} as const;
+
+export interface SecretaryReviewItem {
+  stageId: number;
+  stageName: string;
+  type: SecretaryReviewItemType;
+  message: string;
+  controlDate?: string | null;
+  isUrgent: boolean;
+  isCompleted: boolean;
+}
+
+export interface SecretaryReview {
+  clientId: number;
+  model: string;
+  headline: string;
+  priority: SecretaryReviewPriority;
+  items: SecretaryReviewItem[];
+}
+

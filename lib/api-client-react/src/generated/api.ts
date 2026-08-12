@@ -28,7 +28,9 @@ import type {
   ClientStats,
   ClientUpdate,
   ClientsSummary,
-  HealthStatus
+  HealthStatus,
+  PreliminaryPlan,
+  SecretaryReview
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -872,4 +874,152 @@ export const useDeleteClient = <TError = ErrorType<void>,
       > => {
       return useMutation(getDeleteClientMutationOptions(options));
     }
+
+export const getCreatePreliminaryPlanUrl = (clientId: number,) => {
+
+
+
+
+  return `/api/ai/clients/${clientId}/preliminary-plan`
+}
+
+/**
+ * @summary Create a preliminary case plan with the AI assistant
+ */
+export const createPreliminaryPlan = async (clientId: number, options?: RequestInit): Promise<PreliminaryPlan> => {
+
+  return customFetch<PreliminaryPlan>(getCreatePreliminaryPlanUrl(clientId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreatePreliminaryPlanMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPreliminaryPlan>>, TError,{clientId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPreliminaryPlan>>, TError,{clientId: number}, TContext> => {
+
+const mutationKey = ['createPreliminaryPlan'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPreliminaryPlan>>, {clientId: number}> = (props) => {
+          const {clientId} = props ?? {};
+
+          return  createPreliminaryPlan(clientId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePreliminaryPlanMutationResult = NonNullable<Awaited<ReturnType<typeof createPreliminaryPlan>>>
+
+    export type CreatePreliminaryPlanMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a preliminary case plan with the AI assistant
+ */
+export const useCreatePreliminaryPlan = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPreliminaryPlan>>, TError,{clientId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPreliminaryPlan>>,
+        TError,
+        {clientId: number},
+        TContext
+      > => {
+      return useMutation(getCreatePreliminaryPlanMutationOptions(options));
+    }
+
+export const getGetSecretaryReviewUrl = (clientId: number,) => {
+
+
+
+
+  return `/api/ai/clients/${clientId}/secretary-review`
+}
+
+/**
+ * @summary Review deadlines and urgency with the AI secretary
+ */
+export const getSecretaryReview = async (clientId: number, options?: RequestInit): Promise<SecretaryReview> => {
+
+  return customFetch<SecretaryReview>(getGetSecretaryReviewUrl(clientId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSecretaryReviewQueryKey = (clientId: number,) => {
+    return [
+    `/api/ai/clients/${clientId}/secretary-review`
+    ] as const;
+    }
+
+
+export const getGetSecretaryReviewQueryOptions = <TData = Awaited<ReturnType<typeof getSecretaryReview>>, TError = ErrorType<void>>(clientId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSecretaryReview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSecretaryReviewQueryKey(clientId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSecretaryReview>>> = ({ signal }) => getSecretaryReview(clientId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: clientId !== null && clientId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSecretaryReview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSecretaryReviewQueryResult = NonNullable<Awaited<ReturnType<typeof getSecretaryReview>>>
+export type GetSecretaryReviewQueryError = ErrorType<void>
+
+
+/**
+ * @summary Review deadlines and urgency with the AI secretary
+ */
+
+export function useGetSecretaryReview<TData = Awaited<ReturnType<typeof getSecretaryReview>>, TError = ErrorType<void>>(
+ clientId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSecretaryReview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSecretaryReviewQueryOptions(clientId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

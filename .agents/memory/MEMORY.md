@@ -1,0 +1,1 @@
+- [OpenRouter free providers](openrouter-free-providers.md) — бесплатные провайдеры могут не поддерживать response_format; используйте JSON-инструкцию и серверную валидацию.

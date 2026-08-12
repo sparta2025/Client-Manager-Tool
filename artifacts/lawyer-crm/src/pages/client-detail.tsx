@@ -4,7 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { 
-  ArrowLeft, Plus, Pencil, Trash2, CheckCircle2, Clock, FileText, Target, AlertTriangle, ListTodo, CalendarClock, CalendarCheck
+  ArrowLeft, Plus, Pencil, Trash2, CheckCircle2, Clock, FileText, Target, AlertTriangle, ListTodo, CalendarClock, CalendarCheck,
+  Bot, BellRing, Loader2, Save, Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -13,11 +14,16 @@ import {
   useGetClientStats,
   useListClientStages,
   useCreateClientStage,
+  useCreatePreliminaryPlan,
+  useGetSecretaryReview,
   useUpdateStage,
   useDeleteStage,
   getListClientStagesQueryKey,
   getGetClientStatsQueryKey,
-  CaseStage
+  getGetSecretaryReviewQueryKey,
+  CaseStage,
+  PreliminaryPlan,
+  SecretaryReview
 } from "@workspace/api-client-react";
 
 import { Button } from "@/components/ui/button";
@@ -57,9 +63,16 @@ export default function ClientDetailPage() {
 
   const { data: stats } = useGetClientStats(clientId);
   const { data: stages, isLoading: isStagesLoading } = useListClientStages(clientId);
+  const secretaryReview = useGetSecretaryReview(clientId, {
+    query: { queryKey: getGetSecretaryReviewQueryKey(clientId), enabled: false },
+  });
   
   const queryClient = useQueryClient();
   const deleteStage = useDeleteStage();
+  const createPreliminaryPlan = useCreatePreliminaryPlan();
+  const createStage = useCreateClientStage();
+  const [preliminaryPlan, setPreliminaryPlan] = useState<PreliminaryPlan | null>(null);
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
 
   if (isClientsLoading) {
     return <div className="min-h-screen bg-background p-6 md:p-12 flex items-center justify-center font-sans text-muted-foreground">Загрузка данных...</div>;
@@ -85,6 +98,59 @@ export default function ClientDetailPage() {
     };
     return priority(a) - priority(b) || new Date(b.stageDate).getTime() - new Date(a.stageDate).getTime();
   });
+
+  const handleGeneratePlan = () => {
+    createPreliminaryPlan.mutate(
+      { clientId },
+      {
+        onSuccess: (plan) => {
+          setPreliminaryPlan(plan);
+          toast.success("Предварительный план подготовлен");
+        },
+        onError: () => toast.error("Не удалось подготовить план. Проверьте ключ OpenRouter и попробуйте ещё раз."),
+      },
+    );
+  };
+
+  const handleSavePlan = async () => {
+    if (!preliminaryPlan) return;
+    setIsSavingPlan(true);
+    try {
+      for (const stage of preliminaryPlan.stages) {
+        await createStage.mutateAsync({
+          clientId,
+          data: {
+            name: stage.name,
+            stageDate: stage.stageDate,
+            content: stage.content,
+            result: stage.result ?? null,
+            isCompleted: false,
+            isUrgent: stage.isUrgent,
+            failureReasons: null,
+            nextPlans: stage.nextPlans ?? null,
+            controlDate: stage.controlDate ?? null,
+            nextControlDate: stage.nextControlDate ?? null,
+            closedAt: null,
+          },
+        });
+      }
+      await queryClient.invalidateQueries({ queryKey: getListClientStagesQueryKey(clientId) });
+      await queryClient.invalidateQueries({ queryKey: getGetClientStatsQueryKey(clientId) });
+      setPreliminaryPlan(null);
+      toast.success("Предварительный журнал сохранён в дело");
+    } catch {
+      toast.error("Не удалось сохранить весь план. Проверьте журнал этапов.");
+    } finally {
+      setIsSavingPlan(false);
+    }
+  };
+
+  const handleSecretaryReview = async () => {
+    const result = await secretaryReview.refetch();
+    if (result.error) {
+      toast.error("Не удалось получить напоминания секретаря");
+    }
+  };
 
   const handleDeleteStage = (id: number) => {
     if (!confirm("Вы уверены, что хотите удалить этот этап?")) return;
@@ -130,7 +196,33 @@ export default function ClientDetailPage() {
               </p>
             </div>
             
-            {!isReadOnly && <StageModal clientId={clientId} clientName={client.name} mode="create" />}
+            {!isReadOnly && (
+              <div className="flex flex-wrap justify-end gap-3">
+                {client.status === "new" && (
+                  <Button
+                    variant="outline"
+                    className="rounded-full gap-2 h-11 border-primary/20"
+                    onClick={handleGeneratePlan}
+                    disabled={createPreliminaryPlan.isPending}
+                  >
+                    {createPreliminaryPlan.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    {createPreliminaryPlan.isPending ? "Планирование..." : "Составить план дела"}
+                  </Button>
+                )}
+                {client.status === "in_progress" && (
+                  <Button
+                    variant="outline"
+                    className="rounded-full gap-2 h-11 border-amber-300 text-amber-900 hover:bg-amber-50"
+                    onClick={handleSecretaryReview}
+                    disabled={secretaryReview.isFetching}
+                  >
+                    {secretaryReview.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellRing className="h-4 w-4" />}
+                    {secretaryReview.isFetching ? "Проверка сроков..." : "Проверить сроки"}
+                  </Button>
+                )}
+                <StageModal clientId={clientId} clientName={client.name} mode="create" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -155,6 +247,55 @@ export default function ClientDetailPage() {
             icon={<CheckCircle2 className="h-4 w-4 text-[#15803d]" />} 
           />
         </section>
+
+        {preliminaryPlan && (
+          <Card className="border-primary/15 bg-primary/[0.03] shadow-sm animate-in fade-in slide-in-from-top-3 duration-300">
+            <CardHeader className="pb-3 border-b border-primary/10">
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                <div className="flex gap-3">
+                  <Bot className="w-5 h-5 text-primary shrink-0 mt-1" />
+                  <div>
+                    <CardTitle className="text-lg font-serif text-primary">Предварительный план от помощника</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">{preliminaryPlan.introduction}</p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  className="gap-2 shrink-0"
+                  onClick={handleSavePlan}
+                  disabled={isSavingPlan || preliminaryPlan.stages.length === 0}
+                >
+                  {isSavingPlan ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {isSavingPlan ? "Сохранение..." : "Сохранить в журнал"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3">
+              {preliminaryPlan.stages.map((stage, index) => (
+                <div key={`${stage.name}-${index}`} className="rounded-lg border bg-card p-4">
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
+                    <div>
+                      <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Этап {index + 1}</div>
+                      <h3 className="font-serif text-lg text-primary">{stage.name}</h3>
+                    </div>
+                    {stage.isUrgent && <Badge variant="destructive" className="font-bold self-start">Срочно</Badge>}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">{stage.content}</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-muted-foreground">
+                    <span>Начало: {format(new Date(stage.stageDate), "d MMMM yyyy", { locale: ru })}</span>
+                    {stage.controlDate && <span>Контроль: {format(new Date(stage.controlDate), "d MMMM yyyy", { locale: ru })}</span>}
+                    {stage.nextControlDate && <span>Следующий контроль: {format(new Date(stage.nextControlDate), "d MMMM yyyy", { locale: ru })}</span>}
+                  </div>
+                  {stage.nextPlans && <p className="text-sm text-primary/80 mt-2">Дальше: {stage.nextPlans}</p>}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {secretaryReview.data && (
+          <SecretaryReviewCard review={secretaryReview.data} />
+        )}
 
         {stats?.lastNextPlans && (
           <Card className="bg-primary/5 border-primary/10 shadow-none animate-in fade-in zoom-in-95 duration-700 delay-150 fill-mode-both">
@@ -327,6 +468,55 @@ export default function ClientDetailPage() {
 
       </div>
     </div>
+  );
+}
+
+function SecretaryReviewCard({ review }: { review: SecretaryReview }) {
+  const priorityStyles = {
+    normal: "border-green-200 bg-green-50/70 text-green-900",
+    attention: "border-amber-200 bg-amber-50/70 text-amber-950",
+    urgent: "border-red-200 bg-red-50/70 text-red-950",
+  };
+
+  return (
+    <Card className={`shadow-sm animate-in fade-in slide-in-from-top-3 duration-300 ${priorityStyles[review.priority]}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-start gap-3">
+          <BellRing className="w-5 h-5 shrink-0 mt-1" />
+          <div>
+            <CardTitle className="text-lg font-serif">Агент-секретарь</CardTitle>
+            <p className="text-sm mt-1 opacity-80">{review.headline}</p>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {review.items.length === 0 ? (
+          <p className="text-sm opacity-80">Срочных и ближайших контрольных сроков не найдено.</p>
+        ) : (
+          <div className="space-y-2">
+            {review.items.map((item) => (
+              <div key={`${item.stageId}-${item.type}`} className="flex items-start gap-3 rounded-lg border border-current/10 bg-white/50 p-3">
+                <div className="mt-1 h-2 w-2 rounded-full bg-current shrink-0" />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{item.stageName}</span>
+                    <Badge variant={item.type === "upcoming" ? "in_progress" : "destructive"}>
+                      {item.type === "overdue" ? "Просрочено" : item.type === "urgent" ? "Срочно" : "Скоро"}
+                    </Badge>
+                  </div>
+                  <p className="text-sm mt-1 opacity-80">{item.message}</p>
+                  {item.controlDate && (
+                    <p className="text-xs mt-1 opacity-70">
+                      Контроль: {format(new Date(item.controlDate), "d MMMM yyyy, HH:mm", { locale: ru })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
