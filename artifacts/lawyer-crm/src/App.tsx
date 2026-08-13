@@ -3,6 +3,7 @@ import { Toaster } from 'sonner';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import Dashboard from '@/pages/dashboard';
 import ClientDetailPage from '@/pages/client-detail';
+import DocumentationPage from '@/pages/documentation';
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/documentation" component={DocumentationPage} />
       <Route path="/clients/:id" component={ClientDetailPage} />
       <Route component={NotFound} />
     </Switch>

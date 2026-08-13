@@ -1,15 +1,17 @@
-# [Project name]
+# CRM юриста
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Веб-приложение для ведения клиентских дел, журнала этапов, контрольных дат и AI-помощи юристу.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/api-server run dev` — запуск API-сервера
+- `pnpm --filter @workspace/lawyer-crm run dev` — запуск веб-приложения
+- `pnpm run typecheck` — полная проверка типов
+- `pnpm run build` — проверка типов и production-сборка
+- `pnpm --filter @workspace/api-spec run codegen` — генерация API-хуков и Zod-схем из OpenAPI
+- `pnpm --filter @workspace/db run push` — применение схемы базы только в development
+- Обязательные переменные: `DATABASE_URL`, `PORT`, `BASE_PATH`
+- Для AI: секрет `OPENROUTER_API_KEY`
 
 ## Stack
 
@@ -20,26 +22,48 @@ _Replace the heading above with the project's name, and this line with one sente
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
 
-## Where things live
+## Где находятся основные части
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/lawyer-crm` — React + Vite интерфейс CRM
+- `artifacts/api-server` — Express API
+- `lib/db/src/schema` — схема PostgreSQL и Drizzle
+- `lib/api-spec/openapi.yaml` — источник истины для API-контрактов
+- `lib/api-client-react` — сгенерированные React-хуки API
+- `lib/api-zod` — сгенерированные серверные Zod-типы
+- `docs/FUNCTIONALITY.md` — пользовательские возможности
+- `docs/DEPLOYMENT.md` — запуск, публикация и диагностика
 
-## Architecture decisions
+## Архитектурные решения
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Клиенты и этапы хранятся в PostgreSQL; состояние не держится только в памяти браузера.
+- API-контракт сначала описывается в OpenAPI, затем по нему генерируются типы и хуки.
+- Закрытые дела доступны для чтения, но не получают новые AI-напоминания и изменения этапов.
+- AI вызывается сервером через OpenRouter; ключ не передаётся в браузер.
+- Для бесплатного OpenRouter-провайдера используется JSON-инструкция и серверная Zod-валидация без `response_format`.
 
-## Product
+## Продукт
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Список клиентов с фильтрацией по статусам через сводные карточки.
+- Создание, редактирование, перевод в статусы `new`, `in_progress`, `closed` и удаление дел.
+- Журнал этапов с содержанием, результатами, планами, срочностью и двумя контрольными датами.
+- AI-агент для предварительного плана нового дела.
+- AI-секретарь для просроченных, срочных и ближайших контрольных сроков.
+- Встроенная страница документации по маршруту `/documentation`.
 
-## User preferences
+## Пользовательские предпочтения
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Интерфейс и документация — на русском языке.
+- Для AI использовать бесплатную модель OpenRouter `openai/gpt-oss-20b:free`.
+- Не подключать встроенную Replit AI Integration повторно; использовать сохранённый `OPENROUTER_API_KEY`.
 
-## Gotchas
+## Особенности и ограничения
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Бесплатная AI-модель может отвечать медленно; сервер выполняет один повтор для временных ошибок.
+- Тестовые данные переносятся в production через Publish с включённой опцией копирования development-данных.
+- После изменений OpenAPI обязательно запускайте `codegen`.
+- После изменений кода перезапускайте соответствующий workflow и проверяйте логи.
 
-## Pointers
+## Ссылки
 
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- [Функциональность](docs/FUNCTIONALITY.md)
+- [Развёртывание](docs/DEPLOYMENT.md)

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { Link } from "wouter";
 import { 
   useListClients, 
   useGetClientsSummary, 
@@ -21,6 +22,7 @@ import {
   UserPlus, 
   CheckCircle2, 
   Clock 
+  , BookOpen
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -95,7 +97,15 @@ export default function Dashboard() {
             <h1 className="text-4xl md:text-5xl font-serif font-medium tracking-tight text-primary">Юридическая консультация/услуги</h1>
             <p className="text-muted-foreground mt-3 text-sm md:text-base">Сводка по делам и контроль статусов процессов</p>
           </div>
-          <AddClientModal />
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" asChild className="h-11 rounded-full gap-2 px-4">
+              <Link href="/documentation">
+                <BookOpen className="h-4 w-4" />
+                Документация
+              </Link>
+            </Button>
+            <AddClientModal />
+          </div>
         </header>
 
         <section className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in zoom-in-95 duration-700 delay-100 fill-mode-both">
