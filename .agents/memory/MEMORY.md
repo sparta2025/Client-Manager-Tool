@@ -1,1 +1,2 @@
 - [OpenRouter free providers](openrouter-free-providers.md) — бесплатные провайдеры могут не поддерживать response_format; используйте JSON-инструкцию и серверную валидацию.
+- [Production data copy](replit-prod-data-copy.md) — данные development переносятся в production через Publish с включённой опцией копирования текущих данных.
