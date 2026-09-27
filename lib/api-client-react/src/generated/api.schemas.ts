@@ -5,6 +5,17 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface AiModel {
+  id: string;
+  name: string;
+  provider: string;
+  isFree: boolean;
+}
+
+export interface AiModelInput {
+  model?: string;
+}
+
 export interface HealthStatus {
   status: string;
 }

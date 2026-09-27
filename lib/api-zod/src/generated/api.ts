@@ -9,6 +9,18 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary List available AI models
+ */
+export const ListAiModelsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "provider": zod.string(),
+  "isFree": zod.boolean()
+})
+export const ListAiModelsResponse = zod.array(ListAiModelsResponseItem)
+
+
+/**
  * Returns server health status
  * @summary Health check
  */
@@ -255,6 +267,10 @@ export const CreatePreliminaryPlanParams = zod.object({
   "clientId": zod.coerce.number()
 })
 
+export const CreatePreliminaryPlanBody = zod.object({
+  "model": zod.string().optional()
+})
+
 export const CreatePreliminaryPlanResponse = zod.object({
   "clientId": zod.number(),
   "model": zod.string(),
@@ -280,6 +296,34 @@ export const GetSecretaryReviewParams = zod.object({
 })
 
 export const GetSecretaryReviewResponse = zod.object({
+  "clientId": zod.number(),
+  "model": zod.string(),
+  "headline": zod.string(),
+  "priority": zod.enum(['normal', 'attention', 'urgent']),
+  "items": zod.array(zod.object({
+  "stageId": zod.number(),
+  "stageName": zod.string(),
+  "type": zod.enum(['overdue', 'urgent', 'upcoming']),
+  "message": zod.string(),
+  "controlDate": zod.coerce.date().nullish(),
+  "isUrgent": zod.boolean(),
+  "isCompleted": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Run the AI secretary review with a selected model
+ */
+export const RunSecretaryReviewParams = zod.object({
+  "clientId": zod.coerce.number()
+})
+
+export const RunSecretaryReviewBody = zod.object({
+  "model": zod.string().optional()
+})
+
+export const RunSecretaryReviewResponse = zod.object({
   "clientId": zod.number(),
   "model": zod.string(),
   "headline": zod.string(),

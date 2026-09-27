@@ -146,7 +146,8 @@ export default function DocumentationPage() {
             </div>
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-sm leading-6 text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
               AI-ответ — предварительная рабочая подсказка. Проверяйте даты и содержание
-              перед сохранением в журнал. Бесплатная модель может отвечать дольше обычного.
+              перед сохранением в журнал. Модель можно выбрать через шестерёнку в верхней панели;
+              бесплатная модель может отвечать дольше обычного.
             </div>
           </section>
 

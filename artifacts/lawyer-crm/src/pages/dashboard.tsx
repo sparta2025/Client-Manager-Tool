@@ -34,6 +34,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AiModelSettings } from "@/components/ai-model-settings";
 
 function toDateTimeLocalValue(iso?: string | null): string {
   if (!iso) return "";
@@ -104,6 +105,7 @@ export default function Dashboard() {
                 Документация
               </Link>
             </Button>
+            <AiModelSettings />
             <AddClientModal />
           </div>
         </header>

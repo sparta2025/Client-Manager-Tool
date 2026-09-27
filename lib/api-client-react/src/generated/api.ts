@@ -20,6 +20,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AiModel,
+  AiModelInput,
   CaseStage,
   CaseStageInput,
   CaseStageUpdate,
@@ -59,6 +61,83 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListAiModelsUrl = () => {
+
+
+
+
+  return `/api/ai/models`
+}
+
+/**
+ * @summary List available AI models
+ */
+export const listAiModels = async ( options?: RequestInit): Promise<AiModel[]> => {
+
+  return customFetch<AiModel[]>(getListAiModelsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAiModelsQueryKey = () => {
+    return [
+    `/api/ai/models`
+    ] as const;
+    }
+
+
+export const getListAiModelsQueryOptions = <TData = Awaited<ReturnType<typeof listAiModels>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAiModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAiModelsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAiModels>>> = ({ signal }) => listAiModels({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAiModels>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAiModelsQueryResult = NonNullable<Awaited<ReturnType<typeof listAiModels>>>
+export type ListAiModelsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List available AI models
+ */
+
+export function useListAiModels<TData = Awaited<ReturnType<typeof listAiModels>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAiModels>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAiModelsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getHealthCheckUrl = () => {
 
@@ -886,14 +965,15 @@ export const getCreatePreliminaryPlanUrl = (clientId: number,) => {
 /**
  * @summary Create a preliminary case plan with the AI assistant
  */
-export const createPreliminaryPlan = async (clientId: number, options?: RequestInit): Promise<PreliminaryPlan> => {
+export const createPreliminaryPlan = async (clientId: number,
+    aiModelInput?: AiModelInput, options?: RequestInit): Promise<PreliminaryPlan> => {
 
   return customFetch<PreliminaryPlan>(getCreatePreliminaryPlanUrl(clientId),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(aiModelInput)
   }
 );}
 
@@ -902,8 +982,8 @@ export const createPreliminaryPlan = async (clientId: number, options?: RequestI
 
 
 export const getCreatePreliminaryPlanMutationOptions = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPreliminaryPlan>>, TError,{clientId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createPreliminaryPlan>>, TError,{clientId: number}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPreliminaryPlan>>, TError,{clientId: number;data?: BodyType<AiModelInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPreliminaryPlan>>, TError,{clientId: number;data?: BodyType<AiModelInput>}, TContext> => {
 
 const mutationKey = ['createPreliminaryPlan'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -915,10 +995,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPreliminaryPlan>>, {clientId: number}> = (props) => {
-          const {clientId} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPreliminaryPlan>>, {clientId: number;data?: BodyType<AiModelInput>}> = (props) => {
+          const {clientId,data} = props ?? {};
 
-          return  createPreliminaryPlan(clientId,requestOptions)
+          return  createPreliminaryPlan(clientId,data,requestOptions)
         }
 
 
@@ -929,18 +1009,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreatePreliminaryPlanMutationResult = NonNullable<Awaited<ReturnType<typeof createPreliminaryPlan>>>
-
+    export type CreatePreliminaryPlanMutationBody = BodyType<AiModelInput> | undefined
     export type CreatePreliminaryPlanMutationError = ErrorType<void>
 
     /**
  * @summary Create a preliminary case plan with the AI assistant
  */
 export const useCreatePreliminaryPlan = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPreliminaryPlan>>, TError,{clientId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPreliminaryPlan>>, TError,{clientId: number;data?: BodyType<AiModelInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createPreliminaryPlan>>,
         TError,
-        {clientId: number},
+        {clientId: number;data?: BodyType<AiModelInput>},
         TContext
       > => {
       return useMutation(getCreatePreliminaryPlanMutationOptions(options));
@@ -1022,4 +1102,76 @@ export function useGetSecretaryReview<TData = Awaited<ReturnType<typeof getSecre
 
 
 
+
+export const getRunSecretaryReviewUrl = (clientId: number,) => {
+
+
+
+
+  return `/api/ai/clients/${clientId}/secretary-review`
+}
+
+/**
+ * @summary Run the AI secretary review with a selected model
+ */
+export const runSecretaryReview = async (clientId: number,
+    aiModelInput?: AiModelInput, options?: RequestInit): Promise<SecretaryReview> => {
+
+  return customFetch<SecretaryReview>(getRunSecretaryReviewUrl(clientId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(aiModelInput)
+  }
+);}
+
+
+
+
+
+export const getRunSecretaryReviewMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runSecretaryReview>>, TError,{clientId: number;data?: BodyType<AiModelInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runSecretaryReview>>, TError,{clientId: number;data?: BodyType<AiModelInput>}, TContext> => {
+
+const mutationKey = ['runSecretaryReview'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runSecretaryReview>>, {clientId: number;data?: BodyType<AiModelInput>}> = (props) => {
+          const {clientId,data} = props ?? {};
+
+          return  runSecretaryReview(clientId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunSecretaryReviewMutationResult = NonNullable<Awaited<ReturnType<typeof runSecretaryReview>>>
+    export type RunSecretaryReviewMutationBody = BodyType<AiModelInput> | undefined
+    export type RunSecretaryReviewMutationError = ErrorType<void>
+
+    /**
+ * @summary Run the AI secretary review with a selected model
+ */
+export const useRunSecretaryReview = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runSecretaryReview>>, TError,{clientId: number;data?: BodyType<AiModelInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runSecretaryReview>>,
+        TError,
+        {clientId: number;data?: BodyType<AiModelInput>},
+        TContext
+      > => {
+      return useMutation(getRunSecretaryReviewMutationOptions(options));
+    }
 

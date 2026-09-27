@@ -17,6 +17,22 @@ tags:
   - name: ai
     description: AI assistants for planning and deadline reminders
 paths:
+  /ai/models:
+    get:
+      operationId: listAiModels
+      tags: [ai]
+      summary: List available AI models
+      responses:
+        "200":
+          description: Available free AI models
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AiModel"
+        "503":
+          description: AI provider is unavailable
   /healthz:
     get:
       operationId: healthCheck
@@ -233,6 +249,12 @@ paths:
           required: true
           schema:
             type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiModelInput"
       responses:
         "200":
           description: Generated preliminary plan
@@ -266,8 +288,52 @@ paths:
           description: Client not found
         "409":
           description: The client is closed
+    post:
+      operationId: runSecretaryReview
+      tags: [ai]
+      summary: Run the AI secretary review with a selected model
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiModelInput"
+      responses:
+        "200":
+          description: Generated secretary review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecretaryReview"
+        "404":
+          description: Client not found
+        "409":
+          description: The client is closed
 components:
   schemas:
+    AiModel:
+      type: object
+      required: [id, name, provider, isFree]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        provider:
+          type: string
+        isFree:
+          type: boolean
+    AiModelInput:
+      type: object
+      properties:
+        model:
+          type: string
     HealthStatus:
       type: object
       properties:

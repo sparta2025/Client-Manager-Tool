@@ -15,12 +15,11 @@ import {
   useListClientStages,
   useCreateClientStage,
   useCreatePreliminaryPlan,
-  useGetSecretaryReview,
+  useRunSecretaryReview,
   useUpdateStage,
   useDeleteStage,
   getListClientStagesQueryKey,
   getGetClientStatsQueryKey,
-  getGetSecretaryReviewQueryKey,
   CaseStage,
   PreliminaryPlan,
   SecretaryReview
@@ -34,6 +33,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { AiModelSettings } from "@/components/ai-model-settings";
+import { getSelectedAiModel } from "@/lib/ai-model-storage";
 
 const STATUS_MAP = {
   new: { label: "Новый", variant: "new" as const },
@@ -63,13 +64,11 @@ export default function ClientDetailPage() {
 
   const { data: stats } = useGetClientStats(clientId);
   const { data: stages, isLoading: isStagesLoading } = useListClientStages(clientId);
-  const secretaryReview = useGetSecretaryReview(clientId, {
-    query: { queryKey: getGetSecretaryReviewQueryKey(clientId), enabled: false },
-  });
   
   const queryClient = useQueryClient();
   const deleteStage = useDeleteStage();
   const createPreliminaryPlan = useCreatePreliminaryPlan();
+  const secretaryReview = useRunSecretaryReview();
   const createStage = useCreateClientStage();
   const [preliminaryPlan, setPreliminaryPlan] = useState<PreliminaryPlan | null>(null);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
@@ -101,7 +100,7 @@ export default function ClientDetailPage() {
 
   const handleGeneratePlan = () => {
     createPreliminaryPlan.mutate(
-      { clientId },
+      { clientId, data: { model: getSelectedAiModel() } },
       {
         onSuccess: (plan) => {
           setPreliminaryPlan(plan);
@@ -146,8 +145,9 @@ export default function ClientDetailPage() {
   };
 
   const handleSecretaryReview = async () => {
-    const result = await secretaryReview.refetch();
-    if (result.error) {
+    try {
+      await secretaryReview.mutateAsync({ clientId, data: { model: getSelectedAiModel() } });
+    } catch {
       toast.error("Не удалось получить напоминания секретаря");
     }
   };
@@ -214,15 +214,18 @@ export default function ClientDetailPage() {
                     variant="outline"
                     className="rounded-full gap-2 h-11 border-amber-300 text-amber-900 hover:bg-amber-50"
                     onClick={handleSecretaryReview}
-                    disabled={secretaryReview.isFetching}
+                    disabled={secretaryReview.isPending}
                   >
-                    {secretaryReview.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellRing className="h-4 w-4" />}
-                    {secretaryReview.isFetching ? "Проверка сроков..." : "Проверить сроки"}
+                    {secretaryReview.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellRing className="h-4 w-4" />}
+                    {secretaryReview.isPending ? "Проверка сроков..." : "Проверить сроки"}
                   </Button>
                 )}
                 <StageModal clientId={clientId} clientName={client.name} mode="create" />
               </div>
             )}
+            <div className="flex justify-end">
+              <AiModelSettings />
+            </div>
           </div>
         </div>
 

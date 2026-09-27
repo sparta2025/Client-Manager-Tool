@@ -1,23 +1,56 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { eq } from "drizzle-orm";
 import { db, clientsTable, caseStagesTable } from "@workspace/db";
 import {
   CreatePreliminaryPlanParams,
+  CreatePreliminaryPlanBody,
   CreatePreliminaryPlanResponse,
   GetSecretaryReviewParams,
   GetSecretaryReviewResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
-const MODEL = process.env.OPENROUTER_MODEL ?? "openrouter/free";
+const DEFAULT_MODEL = process.env.OPENROUTER_MODEL ?? "openrouter/free";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models";
+const MODEL_ID_PATTERN = /^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*(?::[a-z0-9][a-z0-9._-]*)?$/i;
 
 type ChatMessage = {
   role: "system" | "user";
   content: string;
 };
 
-async function askOpenRouter(messages: ChatMessage[], attempt = 0): Promise<unknown> {
+type AiModel = {
+  id: string;
+  name: string;
+  provider: string;
+  isFree: boolean;
+};
+
+type OpenRouterModel = {
+  id?: string;
+  name?: string;
+  pricing?: {
+    prompt?: string | number;
+    completion?: string | number;
+  };
+  architecture?: {
+    output_modalities?: string[];
+  };
+};
+
+let modelsCache: { expiresAt: number; models: AiModel[] } | null = null;
+
+function resolveModel(value: unknown): string {
+  return typeof value === "string" && MODEL_ID_PATTERN.test(value) ? value : DEFAULT_MODEL;
+}
+
+function resolveBodyModel(body: unknown): string {
+  const parsed = CreatePreliminaryPlanBody.safeParse(body ?? {});
+  return resolveModel(parsed.success ? parsed.data.model : undefined);
+}
+
+async function askOpenRouter(messages: ChatMessage[], model: string, attempt = 0): Promise<unknown> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     throw new Error("OPENROUTER_API_KEY is not configured");
@@ -36,7 +69,7 @@ async function askOpenRouter(messages: ChatMessage[], attempt = 0): Promise<unkn
         "X-Title": "Lawyer CRM",
       },
       body: JSON.stringify({
-        model: MODEL,
+        model,
         temperature: 0.2,
         max_tokens: 8192,
         messages,
@@ -51,7 +84,7 @@ async function askOpenRouter(messages: ChatMessage[], attempt = 0): Promise<unkn
     if (!response.ok) {
       if (attempt === 0 && (response.status === 408 || response.status === 429 || response.status >= 500)) {
         await new Promise((resolve) => setTimeout(resolve, 750));
-        return askOpenRouter(messages, attempt + 1);
+        return askOpenRouter(messages, model, attempt + 1);
       }
       throw new Error(payload.error?.message || `OpenRouter returned ${response.status}`);
     }
@@ -69,7 +102,7 @@ async function askOpenRouter(messages: ChatMessage[], attempt = 0): Promise<unkn
   } catch (error) {
     if (attempt === 0 && !(error instanceof Error && error.name === "AbortError")) {
       await new Promise((resolve) => setTimeout(resolve, 750));
-      return askOpenRouter(messages, attempt + 1);
+      return askOpenRouter(messages, model, attempt + 1);
     }
     throw error;
   } finally {
@@ -84,6 +117,75 @@ function formatStageDate(value: Date | null): string | null {
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unknown AI error";
 }
+
+router.get("/ai/models", async (_req, res): Promise<void> => {
+  const now = Date.now();
+  if (modelsCache && modelsCache.expiresAt > now) {
+    res.json(modelsCache.models);
+    return;
+  }
+
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    res.status(503).json({ error: "OPENROUTER_API_KEY is not configured" });
+    return;
+  }
+
+  try {
+    const response = await fetch(OPENROUTER_MODELS_URL, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://replit.com",
+        "X-Title": "Lawyer CRM",
+      },
+    });
+    const payload = (await response.json()) as { data?: OpenRouterModel[] };
+    if (!response.ok) {
+      throw new Error(`OpenRouter returned ${response.status}`);
+    }
+
+    const freeModels = (payload.data ?? [])
+      .filter((model) => {
+        const outputModalities = model.architecture?.output_modalities ?? ["text"];
+        return (
+          typeof model.id === "string" &&
+          outputModalities.includes("text") &&
+          String(model.pricing?.prompt ?? "") === "0" &&
+          String(model.pricing?.completion ?? "") === "0"
+        );
+      })
+      .map((model) => ({
+        id: model.id!,
+        name: model.name?.trim() || model.id!,
+        provider: model.id!.split("/")[0],
+        isFree: true,
+      }));
+
+    const models: AiModel[] = [
+      {
+        id: "openrouter/free",
+        name: "OpenRouter Free Models Router",
+        provider: "OpenRouter",
+        isFree: true,
+      },
+      ...freeModels.filter((model) => model.id !== "openrouter/free"),
+    ];
+
+    if (DEFAULT_MODEL !== "openrouter/free" && !models.some((model) => model.id === DEFAULT_MODEL)) {
+      models.unshift({
+        id: DEFAULT_MODEL,
+        name: `Настроенная модель (${DEFAULT_MODEL})`,
+        provider: DEFAULT_MODEL.split("/")[0],
+        isFree: false,
+      });
+    }
+
+    modelsCache = { expiresAt: now + 5 * 60 * 1000, models };
+    res.json(models);
+  } catch (error) {
+    res.status(503).json({ error: `Не удалось получить список моделей: ${errorMessage(error)}` });
+  }
+});
 
 router.post("/ai/clients/:clientId/preliminary-plan", async (req, res): Promise<void> => {
   const params = CreatePreliminaryPlanParams.safeParse(req.params);
@@ -115,6 +217,7 @@ router.post("/ai/clients/:clientId/preliminary-plan", async (req, res): Promise<
     .where(eq(caseStagesTable.clientId, client.id));
 
   const now = new Date();
+  const model = resolveBodyModel(req.body);
   try {
     const generated = await askOpenRouter([
       {
@@ -157,11 +260,11 @@ router.post("/ai/clients/:clientId/preliminary-plan", async (req, res): Promise<
           ],
         }),
       },
-    ]);
+    ], model);
 
     const result = CreatePreliminaryPlanResponse.parse({
       clientId: client.id,
-      model: MODEL,
+      model,
       ...(generated as Record<string, unknown>),
     });
     res.json(result);
@@ -170,7 +273,7 @@ router.post("/ai/clients/:clientId/preliminary-plan", async (req, res): Promise<
   }
 });
 
-router.get("/ai/clients/:clientId/secretary-review", async (req, res): Promise<void> => {
+const secretaryReviewHandler = async (req: Request, res: Response): Promise<void> => {
   const params = GetSecretaryReviewParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -240,6 +343,7 @@ router.get("/ai/clients/:clientId/secretary-review", async (req, res): Promise<v
   });
 
   try {
+    const model = resolveBodyModel(req.body);
     const generated = await askOpenRouter([
       {
         role: "system",
@@ -279,17 +383,20 @@ router.get("/ai/clients/:clientId/secretary-review", async (req, res): Promise<v
           ],
         }),
       },
-    ]);
+    ], model);
 
     const result = GetSecretaryReviewResponse.parse({
       clientId: client.id,
-      model: MODEL,
+      model,
       ...(generated as Record<string, unknown>),
     });
     res.json(result);
   } catch (error) {
     res.status(502).json({ error: `Не удалось получить напоминания: ${errorMessage(error)}` });
   }
-});
+};
+
+router.get("/ai/clients/:clientId/secretary-review", secretaryReviewHandler);
+router.post("/ai/clients/:clientId/secretary-review", secretaryReviewHandler);
 
 export default router;
