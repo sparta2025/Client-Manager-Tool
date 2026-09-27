@@ -9,7 +9,7 @@ import {
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
-const MODEL = "openai/gpt-oss-20b:free";
+const MODEL = process.env.OPENROUTER_MODEL ?? "openrouter/free";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 type ChatMessage = {
