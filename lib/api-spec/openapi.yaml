@@ -266,6 +266,34 @@ paths:
           description: Client not found
         "409":
           description: The client is not new
+  /ai/clients/{clientId}/next-step:
+    post:
+      operationId: suggestNextStep
+      tags: [ai]
+      summary: Suggest the next case stage based on the latest journal entries
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiModelInput"
+      responses:
+        "200":
+          description: Suggested next stage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NextStepSuggestion"
+        "404":
+          description: Client not found
+        "409":
+          description: The client is not in progress or has no journal entries
   /ai/clients/{clientId}/secretary-review:
     get:
       operationId: getSecretaryReview
@@ -381,6 +409,16 @@ components:
         createdAt:
           type: string
           format: date-time
+        initialRequest:
+          type: string
+          description: Client request and primary consultation notes
+        initialControlDate:
+          type: ["string", "null"]
+          format: date-time
+          description: Deadline communicated by the client
+        initialIsUrgent:
+          type: boolean
+          description: Whether the new request needs immediate attention
     ClientUpdate:
       type: object
       properties:
@@ -633,4 +671,39 @@ components:
           type: boolean
         isCompleted:
           type: boolean
+    NextStepSuggestion:
+      type: object
+      required: [clientId, model, summary, currentStageName, proposedStage]
+      properties:
+        clientId:
+          type: integer
+        model:
+          type: string
+        summary:
+          type: string
+        currentStageName:
+          type: ["string", "null"]
+        proposedStage:
+          $ref: "#/components/schemas/ProposedNextStage"
+    ProposedNextStage:
+      type: object
+      required: [name, stageDate, content, isUrgent, controlDate, nextControlDate, nextPlans]
+      properties:
+        name:
+          type: string
+        stageDate:
+          type: string
+          format: date-time
+        content:
+          type: string
+        isUrgent:
+          type: boolean
+        controlDate:
+          type: ["string", "null"]
+          format: date-time
+        nextControlDate:
+          type: ["string", "null"]
+          format: date-time
+        nextPlans:
+          type: ["string", "null"]
 

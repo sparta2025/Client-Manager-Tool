@@ -21,8 +21,10 @@ import {
   getListClientStagesQueryKey,
   getGetClientStatsQueryKey,
   CaseStage,
+  NextStepSuggestion,
   PreliminaryPlan,
-  SecretaryReview
+  SecretaryReview,
+  useSuggestNextStep,
 } from "@workspace/api-client-react";
 
 import { Button } from "@/components/ui/button";
@@ -69,9 +71,12 @@ export default function ClientDetailPage() {
   const deleteStage = useDeleteStage();
   const createPreliminaryPlan = useCreatePreliminaryPlan();
   const secretaryReview = useRunSecretaryReview();
+  const suggestNextStep = useSuggestNextStep();
   const createStage = useCreateClientStage();
   const [preliminaryPlan, setPreliminaryPlan] = useState<PreliminaryPlan | null>(null);
+  const [nextStepSuggestion, setNextStepSuggestion] = useState<NextStepSuggestion | null>(null);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [isSavingSuggestedStage, setIsSavingSuggestedStage] = useState(false);
 
   if (isClientsLoading) {
     return <div className="min-h-screen bg-background p-6 md:p-12 flex items-center justify-center font-sans text-muted-foreground">Загрузка данных...</div>;
@@ -152,6 +157,50 @@ export default function ClientDetailPage() {
     }
   };
 
+  const handleSuggestNextStep = async () => {
+    setNextStepSuggestion(null);
+    try {
+      const suggestion = await suggestNextStep.mutateAsync({
+        clientId,
+        data: { model: getSelectedAiModel() },
+      });
+      setNextStepSuggestion(suggestion);
+    } catch {
+      toast.error("Не удалось подготовить следующий шаг по журналу дела");
+    }
+  };
+
+  const handleAddSuggestedStage = async () => {
+    if (!nextStepSuggestion) return;
+    setIsSavingSuggestedStage(true);
+    try {
+      await createStage.mutateAsync({
+        clientId,
+        data: {
+          name: nextStepSuggestion.proposedStage.name,
+          stageDate: nextStepSuggestion.proposedStage.stageDate,
+          content: nextStepSuggestion.proposedStage.content,
+          result: null,
+          isCompleted: false,
+          isUrgent: nextStepSuggestion.proposedStage.isUrgent,
+          failureReasons: null,
+          nextPlans: nextStepSuggestion.proposedStage.nextPlans,
+          controlDate: nextStepSuggestion.proposedStage.controlDate,
+          nextControlDate: nextStepSuggestion.proposedStage.nextControlDate,
+          closedAt: null,
+        },
+      });
+      await queryClient.invalidateQueries({ queryKey: getListClientStagesQueryKey(clientId) });
+      await queryClient.invalidateQueries({ queryKey: getGetClientStatsQueryKey(clientId) });
+      setNextStepSuggestion(null);
+      toast.success("Предложенный этап добавлен в журнал");
+    } catch {
+      toast.error("Не удалось добавить предложенный этап");
+    } finally {
+      setIsSavingSuggestedStage(false);
+    }
+  };
+
   const handleDeleteStage = (id: number) => {
     if (!confirm("Вы уверены, что хотите удалить этот этап?")) return;
     deleteStage.mutate({ id }, {
@@ -210,15 +259,28 @@ export default function ClientDetailPage() {
                   </Button>
                 )}
                 {client.status === "in_progress" && (
-                  <Button
-                    variant="outline"
-                    className="rounded-full gap-2 h-11 border-amber-300 text-amber-900 hover:bg-amber-50"
-                    onClick={handleSecretaryReview}
-                    disabled={secretaryReview.isPending}
-                  >
-                    {secretaryReview.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellRing className="h-4 w-4" />}
-                    {secretaryReview.isPending ? "Проверка сроков..." : "Проверить сроки"}
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      className="rounded-full gap-2 h-11 border-amber-300 text-amber-900 hover:bg-amber-50"
+                      onClick={handleSecretaryReview}
+                      disabled={secretaryReview.isPending}
+                      data-testid="button-secretary-review"
+                    >
+                      {secretaryReview.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellRing className="h-4 w-4" />}
+                      {secretaryReview.isPending ? "Проверка сроков..." : "Проверить сроки"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="rounded-full gap-2 h-11 border-primary/20"
+                      onClick={handleSuggestNextStep}
+                      disabled={suggestNextStep.isPending}
+                      data-testid="button-suggest-next-step"
+                    >
+                      {suggestNextStep.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      {suggestNextStep.isPending ? "Анализ журнала..." : "Предложить следующий шаг"}
+                    </Button>
+                  </>
                 )}
                 <StageModal clientId={clientId} clientName={client.name} mode="create" />
               </div>
@@ -298,6 +360,14 @@ export default function ClientDetailPage() {
 
         {secretaryReview.data && (
           <SecretaryReviewCard review={secretaryReview.data} />
+        )}
+
+        {nextStepSuggestion && (
+          <NextStepSuggestionCard
+            suggestion={nextStepSuggestion}
+            isSaving={isSavingSuggestedStage}
+            onAdd={handleAddSuggestedStage}
+          />
         )}
 
         {stats?.lastNextPlans && (
@@ -471,6 +541,65 @@ export default function ClientDetailPage() {
 
       </div>
     </div>
+  );
+}
+
+function NextStepSuggestionCard({
+  suggestion,
+  isSaving,
+  onAdd,
+}: {
+  suggestion: NextStepSuggestion;
+  isSaving: boolean;
+  onAdd: () => void;
+}) {
+  const stage = suggestion.proposedStage;
+
+  return (
+    <Card className="border-primary/15 bg-primary/[0.03] shadow-sm" data-testid="card-next-step-suggestion">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <Sparkles className="mt-1 h-5 w-5 shrink-0 text-primary" />
+            <div>
+              <CardTitle className="text-lg font-serif text-primary">Предложение помощника по следующему шагу</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground" data-testid="text-next-step-summary">{suggestion.summary}</p>
+            </div>
+          </div>
+          <Button
+            onClick={onAdd}
+            disabled={isSaving}
+            className="shrink-0 gap-2"
+            data-testid="button-add-suggested-stage"
+          >
+            {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isSaving ? "Добавление..." : "Добавить этап в журнал"}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3 pt-0">
+        <div className="rounded-xl border bg-card p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-medium text-primary" data-testid="text-suggested-stage-name">{stage.name}</h3>
+            {stage.isUrgent && <Badge variant="destructive">Срочно</Badge>}
+          </div>
+          <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{stage.content}</p>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span>Начало: {format(new Date(stage.stageDate), "d MMMM yyyy, HH:mm", { locale: ru })}</span>
+            {stage.controlDate && (
+              <span>Контроль: {format(new Date(stage.controlDate), "d MMMM yyyy, HH:mm", { locale: ru })}</span>
+            )}
+            {stage.nextControlDate && (
+              <span>Следующий контроль: {format(new Date(stage.nextControlDate), "d MMMM yyyy, HH:mm", { locale: ru })}</span>
+            )}
+          </div>
+          {stage.nextPlans && <p className="mt-2 text-sm text-primary/80">Дальше: {stage.nextPlans}</p>}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Проверьте предложенные сведения перед добавлением. Этап можно будет отредактировать в журнале.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 

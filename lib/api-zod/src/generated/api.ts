@@ -55,7 +55,10 @@ export const CreateClientBody = zod.object({
   "name": zod.string().min(1),
   "phone": zod.string().min(1),
   "status": zod.enum(['new', 'in_progress', 'closed']).optional(),
-  "createdAt": zod.coerce.date().optional()
+  "createdAt": zod.coerce.date().optional(),
+  "initialRequest": zod.string().optional().describe('Client request and primary consultation notes'),
+  "initialControlDate": zod.coerce.date().nullish().describe('Deadline communicated by the client'),
+  "initialIsUrgent": zod.boolean().optional().describe('Whether the new request needs immediate attention')
 })
 
 export const CreateClientResponse = zod.object({
@@ -285,6 +288,34 @@ export const CreatePreliminaryPlanResponse = zod.object({
   "nextControlDate": zod.coerce.date().nullish(),
   "nextPlans": zod.string().nullish()
 }))
+})
+
+
+/**
+ * @summary Suggest the next case stage based on the latest journal entries
+ */
+export const SuggestNextStepParams = zod.object({
+  "clientId": zod.coerce.number()
+})
+
+export const SuggestNextStepBody = zod.object({
+  "model": zod.string().optional()
+})
+
+export const SuggestNextStepResponse = zod.object({
+  "clientId": zod.number(),
+  "model": zod.string(),
+  "summary": zod.string(),
+  "currentStageName": zod.string().nullable(),
+  "proposedStage": zod.object({
+  "name": zod.string(),
+  "stageDate": zod.coerce.date(),
+  "content": zod.string(),
+  "isUrgent": zod.boolean(),
+  "controlDate": zod.coerce.date().nullable(),
+  "nextControlDate": zod.coerce.date().nullable(),
+  "nextPlans": zod.string().nullable()
+})
 })
 
 

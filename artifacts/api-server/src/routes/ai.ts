@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db, clientsTable, caseStagesTable } from "@workspace/db";
 import {
   CreatePreliminaryPlanParams,
@@ -7,6 +7,8 @@ import {
   CreatePreliminaryPlanResponse,
   GetSecretaryReviewParams,
   GetSecretaryReviewResponse,
+  SuggestNextStepParams,
+  SuggestNextStepResponse,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -211,7 +213,13 @@ router.post("/ai/clients/:clientId/preliminary-plan", async (req, res): Promise<
     .select({
       name: caseStagesTable.name,
       stageDate: caseStagesTable.stageDate,
+      content: caseStagesTable.content,
+      result: caseStagesTable.result,
       isCompleted: caseStagesTable.isCompleted,
+      isUrgent: caseStagesTable.isUrgent,
+      controlDate: caseStagesTable.controlDate,
+      nextControlDate: caseStagesTable.nextControlDate,
+      nextPlans: caseStagesTable.nextPlans,
     })
     .from(caseStagesTable)
     .where(eq(caseStagesTable.clientId, client.id));
@@ -256,6 +264,9 @@ router.post("/ai/clients/:clientId/preliminary-plan", async (req, res): Promise<
             "Предложи от 3 до 6 последовательных этапов.",
             "Планируй даты в ближайшие 30 дней от текущей даты.",
             "Срочность ставь только этапам с очевидным риском пропуска срока.",
+            "Используй содержание первичного обращения, сообщённую клиентом контрольную дату и флаг срочности как исходные условия.",
+            "Не дублируй первичное обращение отдельным плановым этапом.",
+            "Не меняй и не теряй уже сообщённые контрольные сроки; не придумывай обязательные юридические сроки.",
             "Используй русский язык.",
           ],
         }),
@@ -270,6 +281,103 @@ router.post("/ai/clients/:clientId/preliminary-plan", async (req, res): Promise<
     res.json(result);
   } catch (error) {
     res.status(502).json({ error: `Не удалось составить план: ${errorMessage(error)}` });
+  }
+});
+
+router.post("/ai/clients/:clientId/next-step", async (req, res): Promise<void> => {
+  const params = SuggestNextStepParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [client] = await db
+    .select()
+    .from(clientsTable)
+    .where(eq(clientsTable.id, params.data.clientId));
+  if (!client) {
+    res.status(404).json({ error: "Client not found" });
+    return;
+  }
+  if (client.status !== "in_progress") {
+    res.status(409).json({ error: "Next-step suggestions are available for in-progress clients only" });
+    return;
+  }
+
+  const stages = await db
+    .select()
+    .from(caseStagesTable)
+    .where(eq(caseStagesTable.clientId, client.id))
+    .orderBy(desc(caseStagesTable.stageDate))
+    .limit(12);
+  if (stages.length === 0) {
+    res.status(409).json({ error: "Add a journal entry before requesting a next-step suggestion" });
+    return;
+  }
+
+  const currentStage = stages.find((stage) => !stage.isCompleted) ?? stages[0];
+  const model = resolveBodyModel(req.body);
+
+  try {
+    const generated = await askOpenRouter([
+      {
+        role: "system",
+        content:
+          "Ты помощник юриста по ведению уже начатого дела. Анализируй только переданные записи журнала, " +
+          "не выдумывай факты, документы, действия сторон или процессуальные сроки. " +
+          "Отвечай только валидным JSON без markdown. Предложи один следующий этап, который юрист должен проверить.",
+      },
+      {
+        role: "user",
+        content: JSON.stringify({
+          task: "Кратко оценить ход дела и предложить конкретный следующий этап.",
+          client: { name: client.name, status: client.status },
+          currentDate: new Date().toISOString(),
+          currentStageName: currentStage.name,
+          journal: stages.reverse().map((stage) => ({
+            name: stage.name,
+            stageDate: stage.stageDate.toISOString(),
+            content: stage.content,
+            result: stage.result,
+            isCompleted: stage.isCompleted,
+            isUrgent: stage.isUrgent,
+            controlDate: formatStageDate(stage.controlDate),
+            nextControlDate: formatStageDate(stage.nextControlDate),
+            nextPlans: stage.nextPlans,
+          })),
+          outputShape: {
+            summary: "Краткий вывод по последним записям журнала",
+            proposedStage: {
+              name: "Название одного следующего этапа",
+              stageDate: "Предполагаемая дата начала в ISO 8601",
+              content: "Конкретное содержание предлагаемой работы",
+              isUrgent: false,
+              controlDate: "Дата контроля только при наличии оснований или null",
+              nextControlDate: "Дата следующего контроля или null",
+              nextPlans: "Логичный шаг после предложенного этапа или null",
+            },
+          },
+          requirements: [
+            "Учитывай незавершённый этап, его результат, следующие цели, сроки и трудности.",
+            "Если в журнале есть первичное обращение, считай его исходными данными, а не выполненной юридической работой.",
+            "Не предлагай повторно уже завершённые действия.",
+            "Не назначай срочность и юридические сроки без явного основания в записях.",
+            "Необоснованные контрольные даты указывай как null.",
+            "Пиши по-русски, кратко и по существу.",
+          ],
+        }),
+      },
+    ], model);
+
+    const result = SuggestNextStepResponse.parse({
+      clientId: client.id,
+      model,
+      currentStageName: currentStage.name,
+      ...(generated as Record<string, unknown>),
+    });
+    res.json(result);
+  } catch (error) {
+    res.status(502).json({ error: `Не удалось предложить следующий шаг: ${errorMessage(error)}` });
   }
 });
 

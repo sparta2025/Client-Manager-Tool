@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, clientsTable } from "@workspace/db";
+import { db, caseStagesTable, clientsTable } from "@workspace/db";
 import {
   CreateClientBody,
   UpdateClientParams,
@@ -51,15 +51,35 @@ router.post("/clients", async (req, res): Promise<void> => {
     return;
   }
 
-  const [client] = await db
-    .insert(clientsTable)
-    .values({
-      name: parsed.data.name,
-      phone: parsed.data.phone,
-      status: parsed.data.status ?? "new",
-      ...(parsed.data.createdAt ? { createdAt: new Date(parsed.data.createdAt) } : {}),
-    })
-    .returning();
+  const initialRequest = parsed.data.initialRequest?.trim();
+  const initialControlDate = parsed.data.initialControlDate;
+  const initialIsUrgent = parsed.data.initialIsUrgent ?? false;
+  const hasInitialIntake = Boolean(initialRequest || initialControlDate || initialIsUrgent);
+
+  const client = await db.transaction(async (tx) => {
+    const [createdClient] = await tx
+      .insert(clientsTable)
+      .values({
+        name: parsed.data.name,
+        phone: parsed.data.phone,
+        status: parsed.data.status ?? "new",
+        ...(parsed.data.createdAt ? { createdAt: new Date(parsed.data.createdAt) } : {}),
+      })
+      .returning();
+
+    if (hasInitialIntake) {
+      await tx.insert(caseStagesTable).values({
+        clientId: createdClient.id,
+        name: "Заявление или обращение клиента",
+        stageDate: createdClient.createdAt,
+        content: initialRequest || null,
+        controlDate: initialControlDate ? new Date(initialControlDate) : null,
+        isUrgent: initialIsUrgent,
+      });
+    }
+
+    return createdClient;
+  });
 
   res.status(201).json(CreateClientResponse.parse(client));
 });

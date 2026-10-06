@@ -33,6 +33,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AiModelSettings } from "@/components/ai-model-settings";
 
@@ -255,6 +257,9 @@ function AddClientModal() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [initialRequest, setInitialRequest] = useState("");
+  const [initialControlDate, setInitialControlDate] = useState("");
+  const [initialIsUrgent, setInitialIsUrgent] = useState(false);
   
   const queryClient = useQueryClient();
   const createClient = useCreateClient();
@@ -266,7 +271,16 @@ function AddClientModal() {
       return;
     }
     
-    createClient.mutate({ data: { name, phone, status: "new" } }, {
+    createClient.mutate({
+      data: {
+        name: name.trim(),
+        phone: phone.trim(),
+        status: "new",
+        initialRequest: initialRequest.trim() || undefined,
+        initialControlDate: fromDateTimeLocalValue(initialControlDate),
+        initialIsUrgent,
+      },
+    }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetClientsSummaryQueryKey() });
@@ -274,6 +288,9 @@ function AddClientModal() {
         setOpen(false);
         setName("");
         setPhone("");
+        setInitialRequest("");
+        setInitialControlDate("");
+        setInitialIsUrgent(false);
       },
       onError: () => {
         toast.error("Ошибка при добавлении клиента");
@@ -289,7 +306,7 @@ function AddClientModal() {
           Новое дело
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Добавление клиента</DialogTitle>
         </DialogHeader>
@@ -314,8 +331,51 @@ function AddClientModal() {
               className="rounded-lg bg-muted/30 focus:bg-background transition-colors h-11"
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="initial-request">Первичная консультация: задача и цель клиента</Label>
+            <Textarea
+              id="initial-request"
+              data-testid="input-initial-request"
+              placeholder="Что клиент хочет решить, какие факты и документы сообщил?"
+              value={initialRequest}
+              onChange={(e) => setInitialRequest(e.target.value)}
+              className="min-h-[110px] rounded-lg bg-muted/30 focus:bg-background transition-colors"
+            />
+            <p className="text-xs text-muted-foreground">
+              Эти сведения попадут в первый этап журнала и будут учтены при составлении плана.
+              AI-запросы обрабатываются через OpenRouter; не указывайте здесь лишние персональные или конфиденциальные данные.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="initial-control-date">Контрольная дата, сообщённая клиентом</Label>
+            <Input
+              id="initial-control-date"
+              data-testid="input-initial-control-date"
+              type="datetime-local"
+              step={60}
+              value={initialControlDate}
+              onChange={(e) => setInitialControlDate(e.target.value)}
+              className="rounded-lg bg-muted/30 focus:bg-background transition-colors h-11"
+            />
+          </div>
+          <div className="flex items-center gap-3 rounded-lg border border-amber-200/70 bg-amber-50/60 p-3">
+            <Switch
+              id="initial-is-urgent"
+              data-testid="switch-initial-is-urgent"
+              checked={initialIsUrgent}
+              onCheckedChange={setInitialIsUrgent}
+            />
+            <div className="space-y-0.5">
+              <Label htmlFor="initial-is-urgent" className="cursor-pointer font-semibold text-amber-900">
+                Требует немедленного внимания
+              </Label>
+              <p className="text-sm text-amber-800/80">
+                Отметьте, если клиент сообщил о срочном риске или ближайшем сроке.
+              </p>
+            </div>
+          </div>
           <div className="pt-2">
-            <Button type="submit" className="w-full rounded-lg h-11" disabled={createClient.isPending}>
+            <Button type="submit" data-testid="button-create-client" className="w-full rounded-lg h-11" disabled={createClient.isPending}>
               {createClient.isPending ? "Добавление..." : "Сохранить"}
             </Button>
           </div>

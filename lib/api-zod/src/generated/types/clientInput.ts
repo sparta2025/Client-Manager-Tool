@@ -14,4 +14,13 @@ export interface ClientInput {
   phone: string;
   status?: ClientStatus;
   createdAt?: Date;
+  /** Client request and primary consultation notes */
+  initialRequest?: string;
+  /**
+     * Deadline communicated by the client
+     * @nullable
+     */
+  initialControlDate?: Date | null;
+  /** Whether the new request needs immediate attention */
+  initialIsUrgent?: boolean;
 }

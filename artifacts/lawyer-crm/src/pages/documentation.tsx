@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Database,
   Rocket,
+  Target,
   UsersRound,
 } from "lucide-react";
 
@@ -94,7 +95,7 @@ export default function DocumentationPage() {
               <InfoCard
                 number="1"
                 title="Создайте дело"
-                text="Нажмите «Новое дело» на главной странице и заполните ФИО и телефон клиента."
+                text="Нажмите «Новое дело», заполните контактные данные и, если возможно, зафиксируйте задачу клиента, его контрольную дату и срочность."
               />
               <InfoCard
                 number="2"
@@ -111,7 +112,7 @@ export default function DocumentationPage() {
 
           <section id="ai" className="scroll-mt-6">
             <SectionHeading eyebrow="03" title="AI-помощники" icon={<Bot className="h-5 w-5" />} />
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <Card className="border-primary/10">
                 <CardHeader className="flex flex-row items-start gap-3 space-y-0">
                   <span className="rounded-xl bg-primary/5 p-2.5 text-primary">
@@ -126,6 +127,21 @@ export default function DocumentationPage() {
                   Составляет предварительный план из 3–6 этапов с датами, содержанием,
                   срочностью и планами. Проверьте результат и нажмите «Сохранить в журнал»,
                   чтобы добавить этапы в дело.
+                </CardContent>
+              </Card>
+              <Card className="border-primary/10">
+                <CardHeader className="flex flex-row items-start gap-3 space-y-0">
+                  <span className="rounded-xl bg-primary/5 p-2.5 text-primary">
+                    <Target className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <CardTitle className="text-lg">Следующий шаг</CardTitle>
+                    <p className="mt-1 text-sm text-muted-foreground">Для статуса «В работе»</p>
+                  </div>
+                </CardHeader>
+                <CardContent className="text-sm leading-6 text-muted-foreground">
+                  Анализирует последние записи журнала и предлагает один следующий этап.
+                  Проверьте содержание и сроки, затем добавьте предложение в журнал.
                 </CardContent>
               </Card>
               <Card className="border-primary/10">

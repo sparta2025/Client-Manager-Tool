@@ -31,6 +31,7 @@ import type {
   ClientUpdate,
   ClientsSummary,
   HealthStatus,
+  NextStepSuggestion,
   PreliminaryPlan,
   SecretaryReview
 } from './api.schemas';
@@ -1024,6 +1025,78 @@ export const useCreatePreliminaryPlan = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreatePreliminaryPlanMutationOptions(options));
+    }
+
+export const getSuggestNextStepUrl = (clientId: number,) => {
+
+
+
+
+  return `/api/ai/clients/${clientId}/next-step`
+}
+
+/**
+ * @summary Suggest the next case stage based on the latest journal entries
+ */
+export const suggestNextStep = async (clientId: number,
+    aiModelInput?: AiModelInput, options?: RequestInit): Promise<NextStepSuggestion> => {
+
+  return customFetch<NextStepSuggestion>(getSuggestNextStepUrl(clientId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(aiModelInput)
+  }
+);}
+
+
+
+
+
+export const getSuggestNextStepMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestNextStep>>, TError,{clientId: number;data?: BodyType<AiModelInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof suggestNextStep>>, TError,{clientId: number;data?: BodyType<AiModelInput>}, TContext> => {
+
+const mutationKey = ['suggestNextStep'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof suggestNextStep>>, {clientId: number;data?: BodyType<AiModelInput>}> = (props) => {
+          const {clientId,data} = props ?? {};
+
+          return  suggestNextStep(clientId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SuggestNextStepMutationResult = NonNullable<Awaited<ReturnType<typeof suggestNextStep>>>
+    export type SuggestNextStepMutationBody = BodyType<AiModelInput> | undefined
+    export type SuggestNextStepMutationError = ErrorType<void>
+
+    /**
+ * @summary Suggest the next case stage based on the latest journal entries
+ */
+export const useSuggestNextStep = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestNextStep>>, TError,{clientId: number;data?: BodyType<AiModelInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof suggestNextStep>>,
+        TError,
+        {clientId: number;data?: BodyType<AiModelInput>},
+        TContext
+      > => {
+      return useMutation(getSuggestNextStepMutationOptions(options));
     }
 
 export const getGetSecretaryReviewUrl = (clientId: number,) => {

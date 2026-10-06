@@ -46,6 +46,15 @@ export interface ClientInput {
   phone: string;
   status?: ClientStatus;
   createdAt?: string;
+  /** Client request and primary consultation notes */
+  initialRequest?: string;
+  /**
+     * Deadline communicated by the client
+     * @nullable
+     */
+  initialControlDate?: string | null;
+  /** Whether the new request needs immediate attention */
+  initialIsUrgent?: boolean;
 }
 
 export interface ClientUpdate {
@@ -176,5 +185,27 @@ export interface SecretaryReview {
   headline: string;
   priority: SecretaryReviewPriority;
   items: SecretaryReviewItem[];
+}
+
+export interface ProposedNextStage {
+  name: string;
+  stageDate: string;
+  content: string;
+  isUrgent: boolean;
+  /** @nullable */
+  controlDate: string | null;
+  /** @nullable */
+  nextControlDate: string | null;
+  /** @nullable */
+  nextPlans: string | null;
+}
+
+export interface NextStepSuggestion {
+  clientId: number;
+  model: string;
+  summary: string;
+  /** @nullable */
+  currentStageName: string | null;
+  proposedStage: ProposedNextStage;
 }
 
