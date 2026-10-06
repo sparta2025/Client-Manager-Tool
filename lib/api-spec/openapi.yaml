@@ -221,6 +221,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Client"
+        "400":
+          description: A closing summary is required when closing a client
         "404":
           description: Client not found
     delete:
@@ -437,6 +439,10 @@ components:
           type: string
           format: date-time
           nullable: true
+        closingSummary:
+          type: string
+          minLength: 1
+          description: Required when changing the client status to closed
     CaseStage:
       type: object
       required: [id, clientId, name, stageDate, isCompleted, isUrgent, createdAt, updatedAt]

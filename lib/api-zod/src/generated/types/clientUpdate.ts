@@ -15,4 +15,9 @@ export interface ClientUpdate {
   status?: ClientStatus;
   createdAt?: Date;
   closedAt?: Date | null;
+  /**
+     * Required when changing the client status to closed
+     * @minLength 1
+     */
+  closingSummary?: string;
 }

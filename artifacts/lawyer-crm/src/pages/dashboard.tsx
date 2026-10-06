@@ -9,7 +9,7 @@ import {
   useUpdateClient, 
   useDeleteClient,
   getListClientsQueryKey,
-  getGetClientsSummaryQueryKey
+  getGetClientsSummaryQueryKey,
 } from "@workspace/api-client-react";
 import type { Client } from "@workspace/api-client-react";
 import { format } from "date-fns";
@@ -65,7 +65,9 @@ export default function Dashboard() {
   const updateClient = useUpdateClient();
   const deleteClient = useDeleteClient();
 
-  const handleStatusChange = (id: number, status: "new" | "in_progress" | "closed") => {
+  const [clientToClose, setClientToClose] = useState<Client | null>(null);
+
+  const handleStatusChange = (id: number, status: "new" | "in_progress") => {
     updateClient.mutate({ id, data: { status } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() });
@@ -194,7 +196,12 @@ export default function Dashboard() {
                             <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
                             В работе
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(client.id, "closed")} className="cursor-pointer">
+                          <DropdownMenuItem
+                            onClick={() => setClientToClose(client)}
+                            disabled={client.status === "closed"}
+                            className="cursor-pointer"
+                            data-testid={`menu-close-client-${client.id}`}
+                          >
                             <CheckCircle2 className="mr-2 h-4 w-4 text-muted-foreground" />
                             Закрыт
                           </DropdownMenuItem>
@@ -232,8 +239,101 @@ export default function Dashboard() {
             </TableBody>
           </Table>
         </section>
+        <CloseClientDialog
+          client={clientToClose}
+          open={clientToClose !== null}
+          onOpenChange={(open) => {
+            if (!open) setClientToClose(null);
+          }}
+        />
       </div>
     </div>
+  );
+}
+
+function CloseClientDialog({
+  client,
+  open,
+  onOpenChange,
+}: {
+  client: Client | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [closingSummary, setClosingSummary] = useState("");
+  const queryClient = useQueryClient();
+  const updateClient = useUpdateClient();
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!client) return;
+    const finalResult = closingSummary.trim();
+    if (!finalResult) {
+      toast.error("Укажите итоговый результат перед закрытием дела");
+      return;
+    }
+
+    updateClient.mutate({
+      id: client.id,
+      data: { status: "closed", closingSummary: finalResult },
+    }, {
+      onSuccess: async () => {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() }),
+          queryClient.invalidateQueries({ queryKey: getGetClientsSummaryQueryKey() }),
+        ]);
+        toast.success("Итог дела сохранён, дело закрыто");
+        setClosingSummary("");
+        onOpenChange(false);
+      },
+      onError: () => toast.error("Не удалось закрыть дело"),
+    });
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) setClosingSummary("");
+        onOpenChange(nextOpen);
+      }}
+    >
+      <DialogContent className="sm:max-w-[520px]">
+        <DialogHeader>
+          <DialogTitle>Зафиксировать итог и закрыть дело</DialogTitle>
+          <p className="text-sm text-muted-foreground" data-testid="text-close-client-name">
+            {client ? `Дело клиента: ${client.name}. Запись попадёт в журнал и останется доступной для чтения.` : ""}
+          </p>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="closing-summary">Итоговый результат</Label>
+            <Textarea
+              id="closing-summary"
+              data-testid="input-closing-summary"
+              value={closingSummary}
+              onChange={(event) => setClosingSummary(event.target.value)}
+              placeholder="Что удалось сделать, чем завершилось дело, какие договорённости выполнены?"
+              className="min-h-[140px]"
+              maxLength={5000}
+              required
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Отмена
+            </Button>
+            <Button
+              type="submit"
+              data-testid="button-confirm-close-client"
+              disabled={!client || !closingSummary.trim() || updateClient.isPending}
+            >
+              {updateClient.isPending ? "Сохранение..." : "Сохранить итог и закрыть"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -392,9 +492,11 @@ function EditClientModal({ client }: { client: Client }) {
   const [status, setStatus] = useState(client.status);
   const [createdAt, setCreatedAt] = useState(toDateTimeLocalValue(client.createdAt));
   const [closedAt, setClosedAt] = useState(toDateTimeLocalValue(client.closedAt));
+  const [closingSummary, setClosingSummary] = useState("");
 
   const queryClient = useQueryClient();
   const updateClient = useUpdateClient();
+  const requiresClosingSummary = status === "closed" && client.status !== "closed";
 
   const handleOpenChange = (next: boolean) => {
     if (next) {
@@ -403,6 +505,7 @@ function EditClientModal({ client }: { client: Client }) {
       setStatus(client.status);
       setCreatedAt(toDateTimeLocalValue(client.createdAt));
       setClosedAt(toDateTimeLocalValue(client.closedAt));
+      setClosingSummary("");
     }
     setOpen(next);
   };
@@ -413,15 +516,20 @@ function EditClientModal({ client }: { client: Client }) {
       toast.error("Пожалуйста, заполните все обязательные поля");
       return;
     }
+    if (requiresClosingSummary && !closingSummary.trim()) {
+      toast.error("Укажите итоговый результат перед закрытием дела");
+      return;
+    }
 
     updateClient.mutate({
       id: client.id,
       data: {
-        name,
-        phone,
+        name: name.trim(),
+        phone: phone.trim(),
         status,
         createdAt: fromDateTimeLocalValue(createdAt) ?? undefined,
         closedAt: fromDateTimeLocalValue(closedAt),
+        ...(requiresClosingSummary ? { closingSummary: closingSummary.trim() } : {}),
       }
     }, {
       onSuccess: () => {
@@ -511,6 +619,21 @@ function EditClientModal({ client }: { client: Client }) {
               className="rounded-lg bg-muted/30 focus:bg-background transition-colors h-11"
             />
           </div>
+          {requiresClosingSummary && (
+            <div className="space-y-2">
+              <Label htmlFor="edit-closing-summary">Итоговый результат</Label>
+              <Textarea
+                id="edit-closing-summary"
+                data-testid="input-edit-closing-summary"
+                value={closingSummary}
+                onChange={(e) => setClosingSummary(e.target.value)}
+                placeholder="Зафиксируйте, чем завершилось дело и что удалось сделать."
+                className="min-h-[120px]"
+                maxLength={5000}
+                required
+              />
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="edit-closed-at">Дата закрытия обращения</Label>
             <Input
@@ -523,7 +646,7 @@ function EditClientModal({ client }: { client: Client }) {
             />
           </div>
           <div className="pt-2">
-            <Button type="submit" className="w-full rounded-lg h-11" disabled={updateClient.isPending}>
+            <Button type="submit" data-testid="button-save-client-changes" className="w-full rounded-lg h-11" disabled={updateClient.isPending}>
               {updateClient.isPending ? "Сохранение..." : "Сохранить изменения"}
             </Button>
           </div>

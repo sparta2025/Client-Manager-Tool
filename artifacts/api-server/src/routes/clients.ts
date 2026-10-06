@@ -98,38 +98,65 @@ router.patch("/clients/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const { createdAt, closedAt, ...rest } = parsed.data;
-  const updates: Partial<typeof clientsTable.$inferInsert> = { ...rest };
-
-  if (createdAt !== undefined) {
-    updates.createdAt = new Date(createdAt);
-  }
-  if (closedAt !== undefined) {
-    updates.closedAt = closedAt === null ? null : new Date(closedAt);
-  } else if (rest.status === "closed") {
-    const [existing] = await db
-      .select({ closedAt: clientsTable.closedAt })
+  const { createdAt, closedAt, closingSummary, ...rest } = parsed.data;
+  const result = await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ status: clientsTable.status })
       .from(clientsTable)
-      .where(eq(clientsTable.id, params.data.id));
-    if (existing && !existing.closedAt) {
-      updates.closedAt = new Date();
+      .where(eq(clientsTable.id, params.data.id))
+      .for("update");
+
+    if (!existing) return { kind: "not-found" as const };
+
+    const isNewClosure = rest.status === "closed" && existing.status !== "closed";
+    const finalResult = closingSummary?.trim();
+    if (isNewClosure && !finalResult) {
+      return { kind: "closing-summary-required" as const };
     }
-  } else if (rest.status) {
-    updates.closedAt = null;
-  }
 
-  const [client] = await db
-    .update(clientsTable)
-    .set(updates)
-    .where(eq(clientsTable.id, params.data.id))
-    .returning();
+    const updates: Partial<typeof clientsTable.$inferInsert> = { ...rest };
+    if (createdAt !== undefined) {
+      updates.createdAt = new Date(createdAt);
+    }
+    if (rest.status === "closed") {
+      updates.closedAt = closedAt ? new Date(closedAt) : new Date();
+    } else if (rest.status) {
+      updates.closedAt = null;
+    } else if (closedAt !== undefined) {
+      updates.closedAt = closedAt === null ? null : new Date(closedAt);
+    }
 
-  if (!client) {
+    const [updatedClient] = await tx
+      .update(clientsTable)
+      .set(updates)
+      .where(eq(clientsTable.id, params.data.id))
+      .returning();
+
+    if (isNewClosure && finalResult && updatedClient.closedAt) {
+      await tx.insert(caseStagesTable).values({
+        clientId: updatedClient.id,
+        name: "Итог дела",
+        stageDate: updatedClient.closedAt,
+        result: finalResult,
+        isCompleted: true,
+        closedAt: updatedClient.closedAt,
+      });
+    }
+
+    return { kind: "updated" as const, client: updatedClient };
+  });
+
+  if (result.kind === "not-found") {
     res.status(404).json({ error: "Client not found" });
     return;
   }
 
-  res.json(UpdateClientResponse.parse(client));
+  if (result.kind === "closing-summary-required") {
+    res.status(400).json({ error: "Укажите итоговый результат перед закрытием дела" });
+    return;
+  }
+
+  res.json(UpdateClientResponse.parse(result.client));
 });
 
 router.delete("/clients/:id", async (req, res): Promise<void> => {

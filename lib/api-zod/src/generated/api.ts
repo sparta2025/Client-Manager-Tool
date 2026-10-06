@@ -234,12 +234,14 @@ export const UpdateClientParams = zod.object({
 
 
 
+
 export const UpdateClientBody = zod.object({
   "name": zod.string().min(1).optional(),
   "phone": zod.string().min(1).optional(),
   "status": zod.enum(['new', 'in_progress', 'closed']).optional(),
   "createdAt": zod.coerce.date().optional(),
-  "closedAt": zod.coerce.date().nullish()
+  "closedAt": zod.coerce.date().nullish(),
+  "closingSummary": zod.string().min(1).optional().describe('Required when changing the client status to closed')
 })
 
 export const UpdateClientResponse = zod.object({
