@@ -75,6 +75,58 @@ export const ListSecretaryRemindersResponse = zod.object({
 
 
 /**
+ * @summary Get the signed-in user's team access
+ */
+export const GetCurrentTeamMemberResponse = zod.object({
+  "id": zod.number(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "role": zod.enum(['admin', 'lawyer', 'assistant']),
+  "status": zod.enum(['active', 'pending', 'disabled']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List team members (administrator only)
+ */
+export const ListTeamMembersResponseItem = zod.object({
+  "id": zod.number(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "role": zod.enum(['admin', 'lawyer', 'assistant']),
+  "status": zod.enum(['active', 'pending', 'disabled']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListTeamMembersResponse = zod.array(ListTeamMembersResponseItem)
+
+
+/**
+ * @summary Change a team member's role or access (administrator only)
+ */
+export const UpdateTeamMemberParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateTeamMemberBody = zod.object({
+  "role": zod.enum(['admin', 'lawyer', 'assistant']).optional(),
+  "status": zod.enum(['active', 'pending', 'disabled']).optional()
+})
+
+export const UpdateTeamMemberResponse = zod.object({
+  "id": zod.number(),
+  "displayName": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "role": zod.enum(['admin', 'lawyer', 'assistant']),
+  "status": zod.enum(['active', 'pending', 'disabled']),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary List clients
  */
 export const ListClientsResponseItem = zod.object({
@@ -84,7 +136,9 @@ export const ListClientsResponseItem = zod.object({
   "status": zod.enum(['new', 'in_progress', 'closed']),
   "createdAt": zod.coerce.date(),
   "closedAt": zod.coerce.date().nullish(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "assignedToUserId": zod.number().nullable(),
+  "assignedToUserName": zod.string().nullable()
 })
 export const ListClientsResponse = zod.array(ListClientsResponseItem)
 
@@ -103,7 +157,8 @@ export const CreateClientBody = zod.object({
   "createdAt": zod.coerce.date().optional(),
   "initialRequest": zod.string().optional().describe('Client request and primary consultation notes'),
   "initialControlDate": zod.coerce.date().nullish().describe('Deadline communicated by the client'),
-  "initialIsUrgent": zod.boolean().optional().describe('Whether the new request needs immediate attention')
+  "initialIsUrgent": zod.boolean().optional().describe('Whether the new request needs immediate attention'),
+  "assignedToUserId": zod.number().nullish().describe('Case assignee; administrator only. Other roles are assigned to themselves.')
 })
 
 export const CreateClientResponse = zod.object({
@@ -113,7 +168,9 @@ export const CreateClientResponse = zod.object({
   "status": zod.enum(['new', 'in_progress', 'closed']),
   "createdAt": zod.coerce.date(),
   "closedAt": zod.coerce.date().nullish(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "assignedToUserId": zod.number().nullable(),
+  "assignedToUserName": zod.string().nullable()
 })
 
 
@@ -286,7 +343,8 @@ export const UpdateClientBody = zod.object({
   "status": zod.enum(['new', 'in_progress', 'closed']).optional(),
   "createdAt": zod.coerce.date().optional(),
   "closedAt": zod.coerce.date().nullish(),
-  "closingSummary": zod.string().min(1).optional().describe('Required when changing the client status to closed')
+  "closingSummary": zod.string().min(1).optional().describe('Required when changing the client status to closed'),
+  "assignedToUserId": zod.number().nullish()
 })
 
 export const UpdateClientResponse = zod.object({
@@ -296,7 +354,9 @@ export const UpdateClientResponse = zod.object({
   "status": zod.enum(['new', 'in_progress', 'closed']),
   "createdAt": zod.coerce.date(),
   "closedAt": zod.coerce.date().nullish(),
-  "updatedAt": zod.coerce.date()
+  "updatedAt": zod.coerce.date(),
+  "assignedToUserId": zod.number().nullable(),
+  "assignedToUserName": zod.string().nullable()
 })
 
 

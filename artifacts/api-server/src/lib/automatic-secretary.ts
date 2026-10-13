@@ -8,6 +8,7 @@ import {
   type SecretaryReminderType,
 } from "@workspace/db";
 import { logger } from "./logger";
+import type { CurrentAppUser } from "../middlewares/auth";
 
 export const AUTOMATIC_SECRETARY_CHECK_INTERVAL_MINUTES = 15;
 
@@ -159,7 +160,7 @@ export function startAutomaticSecretaryScheduler(): void {
   schedulerTimer.unref();
 }
 
-export async function listActiveSecretaryReminders() {
+export async function listActiveSecretaryReminders(user?: CurrentAppUser) {
   return db
     .select({
       id: secretaryRemindersTable.id,
@@ -179,6 +180,9 @@ export async function listActiveSecretaryReminders() {
         isNull(secretaryRemindersTable.resolvedAt),
         eq(clientsTable.status, "in_progress"),
         eq(caseStagesTable.isCompleted, false),
+        user && user.role !== "admin"
+          ? eq(clientsTable.assignedToUserId, user.id)
+          : undefined,
       ),
     )
     .orderBy(desc(secretaryRemindersTable.createdAt))

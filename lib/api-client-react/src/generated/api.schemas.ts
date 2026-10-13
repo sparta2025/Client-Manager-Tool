@@ -37,6 +37,10 @@ export interface Client {
   createdAt: string;
   closedAt?: string | null;
   updatedAt: string;
+  /** @nullable */
+  assignedToUserId: number | null;
+  /** @nullable */
+  assignedToUserName: string | null;
 }
 
 export interface ClientInput {
@@ -55,6 +59,11 @@ export interface ClientInput {
   initialControlDate?: string | null;
   /** Whether the new request needs immediate attention */
   initialIsUrgent?: boolean;
+  /**
+     * Case assignee; administrator only. Other roles are assigned to themselves.
+     * @nullable
+     */
+  assignedToUserId?: number | null;
 }
 
 export interface ClientUpdate {
@@ -70,6 +79,8 @@ export interface ClientUpdate {
      * @minLength 1
      */
   closingSummary?: string;
+  /** @nullable */
+  assignedToUserId?: number | null;
 }
 
 export interface CaseStage {
@@ -252,5 +263,40 @@ export interface AgentSecretaryRemindersResponse {
   /** @nullable */
   lastRunAt: string | null;
   reminders: AgentSecretaryReminder[];
+}
+
+export type TeamRole = typeof TeamRole[keyof typeof TeamRole];
+
+
+export const TeamRole = {
+  admin: 'admin',
+  lawyer: 'lawyer',
+  assistant: 'assistant',
+} as const;
+
+export type TeamMemberStatus = typeof TeamMemberStatus[keyof typeof TeamMemberStatus];
+
+
+export const TeamMemberStatus = {
+  active: 'active',
+  pending: 'pending',
+  disabled: 'disabled',
+} as const;
+
+export interface TeamMember {
+  id: number;
+  /** @nullable */
+  displayName: string | null;
+  /** @nullable */
+  email: string | null;
+  role: TeamRole;
+  status: TeamMemberStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeamMemberUpdate {
+  role?: TeamRole;
+  status?: TeamMemberStatus;
 }
 

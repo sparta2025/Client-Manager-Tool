@@ -15,6 +15,7 @@ import {
   listActiveSecretaryReminders,
   runAutomaticSecretaryCheck,
 } from "../lib/automatic-secretary";
+import { requireAdministrator } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
@@ -44,7 +45,7 @@ router.get("/agents/settings", async (_req, res): Promise<void> => {
   res.json(GetAgentSettingsResponse.parse(responseSettings(settings)));
 });
 
-router.patch("/agents/settings", async (req, res): Promise<void> => {
+router.patch("/agents/settings", requireAdministrator, async (req, res): Promise<void> => {
   const parsed = UpdateAgentSettingsBody.safeParse(req.body);
   if (!parsed.success) {
     req.log.warn({ errors: parsed.error.message }, "Invalid agent settings request");
@@ -68,14 +69,14 @@ router.patch("/agents/settings", async (req, res): Promise<void> => {
   res.json(UpdateAgentSettingsResponse.parse(responseSettings(settings)));
 });
 
-router.get("/agents/secretary/reminders", async (_req, res): Promise<void> => {
+router.get("/agents/secretary/reminders", async (req, res): Promise<void> => {
   const settings = await ensureAgentSettings();
   if (settings.autoSecretaryEnabled) {
     await runAutomaticSecretaryCheck();
   }
 
   const reminders = settings.autoSecretaryEnabled
-    ? await listActiveSecretaryReminders()
+    ? await listActiveSecretaryReminders(req.appUser!)
     : [];
   res.json(
     ListSecretaryRemindersResponse.parse({

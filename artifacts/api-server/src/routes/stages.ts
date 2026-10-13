@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, count, max } from "drizzle-orm";
-import { db, clientsTable, caseStagesTable } from "@workspace/db";
+import { db, caseStagesTable } from "@workspace/db";
 import {
   ListClientStagesParams,
   CreateClientStageParams,
@@ -14,6 +14,10 @@ import {
   GetClientStatsResponse,
   UpdateStageResponse,
 } from "@workspace/api-zod";
+import {
+  canDeleteCaseData,
+  getAccessibleClient,
+} from "../lib/authorization";
 
 const router: IRouter = Router();
 
@@ -24,10 +28,7 @@ router.get("/clients/:clientId/stages", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [client] = await db
-    .select({ id: clientsTable.id })
-    .from(clientsTable)
-    .where(eq(clientsTable.id, params.data.clientId));
+  const client = await getAccessibleClient(req.appUser!, params.data.clientId);
   if (!client) {
     res.status(404).json({ error: "Client not found" });
     return;
@@ -52,10 +53,7 @@ router.post("/clients/:clientId/stages", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [client] = await db
-    .select({ id: clientsTable.id })
-    .from(clientsTable)
-    .where(eq(clientsTable.id, params.data.clientId));
+  const client = await getAccessibleClient(req.appUser!, params.data.clientId);
   if (!client) {
     res.status(404).json({ error: "Client not found" });
     return;
@@ -87,10 +85,7 @@ router.get("/clients/:clientId/stats", async (req, res): Promise<void> => {
     res.status(400).json({ error: params.error.message });
     return;
   }
-  const [client] = await db
-    .select({ id: clientsTable.id })
-    .from(clientsTable)
-    .where(eq(clientsTable.id, params.data.clientId));
+  const client = await getAccessibleClient(req.appUser!, params.data.clientId);
   if (!client) {
     res.status(404).json({ error: "Client not found" });
     return;
@@ -164,6 +159,15 @@ router.patch("/stages/:id", async (req, res): Promise<void> => {
   if (controlDate !== undefined) updates.controlDate = controlDate ? new Date(controlDate) : null;
   if (nextControlDate !== undefined) updates.nextControlDate = nextControlDate ? new Date(nextControlDate) : null;
 
+  const [existing] = await db
+    .select({ id: caseStagesTable.id, clientId: caseStagesTable.clientId })
+    .from(caseStagesTable)
+    .where(eq(caseStagesTable.id, params.data.id));
+  if (!existing || !(await getAccessibleClient(req.appUser!, existing.clientId))) {
+    res.status(404).json({ error: "Stage not found" });
+    return;
+  }
+
   const [stage] = await db
     .update(caseStagesTable)
     .set(updates)
@@ -181,6 +185,18 @@ router.delete("/stages/:id", async (req, res): Promise<void> => {
   const params = DeleteStageParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
+    return;
+  }
+  if (!canDeleteCaseData(req.appUser!)) {
+    res.status(403).json({ error: "Assistant access cannot delete case history" });
+    return;
+  }
+  const [existing] = await db
+    .select({ id: caseStagesTable.id, clientId: caseStagesTable.clientId })
+    .from(caseStagesTable)
+    .where(eq(caseStagesTable.id, params.data.id));
+  if (!existing || !(await getAccessibleClient(req.appUser!, existing.clientId))) {
+    res.status(404).json({ error: "Stage not found" });
     return;
   }
   const [stage] = await db

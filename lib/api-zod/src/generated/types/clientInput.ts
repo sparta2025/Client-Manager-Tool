@@ -23,4 +23,9 @@ export interface ClientInput {
   initialControlDate?: Date | null;
   /** Whether the new request needs immediate attention */
   initialIsUrgent?: boolean;
+  /**
+     * Case assignee; administrator only. Other roles are assigned to themselves.
+     * @nullable
+     */
+  assignedToUserId?: number | null;
 }

@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { desc, eq } from "drizzle-orm";
-import { db, clientsTable, caseStagesTable } from "@workspace/db";
+import { db, caseStagesTable } from "@workspace/db";
 import {
   CreatePreliminaryPlanParams,
   CreatePreliminaryPlanBody,
@@ -10,6 +10,7 @@ import {
   SuggestNextStepParams,
   SuggestNextStepResponse,
 } from "@workspace/api-zod";
+import { getAccessibleClient } from "../lib/authorization";
 
 const router: IRouter = Router();
 const DEFAULT_MODEL = process.env.OPENROUTER_MODEL ?? "openrouter/free";
@@ -196,10 +197,7 @@ router.post("/ai/clients/:clientId/preliminary-plan", async (req, res): Promise<
     return;
   }
 
-  const [client] = await db
-    .select()
-    .from(clientsTable)
-    .where(eq(clientsTable.id, params.data.clientId));
+  const client = await getAccessibleClient(req.appUser!, params.data.clientId);
   if (!client) {
     res.status(404).json({ error: "Client not found" });
     return;
@@ -291,10 +289,7 @@ router.post("/ai/clients/:clientId/next-step", async (req, res): Promise<void> =
     return;
   }
 
-  const [client] = await db
-    .select()
-    .from(clientsTable)
-    .where(eq(clientsTable.id, params.data.clientId));
+  const client = await getAccessibleClient(req.appUser!, params.data.clientId);
   if (!client) {
     res.status(404).json({ error: "Client not found" });
     return;
@@ -388,10 +383,7 @@ const secretaryReviewHandler = async (req: Request, res: Response): Promise<void
     return;
   }
 
-  const [client] = await db
-    .select()
-    .from(clientsTable)
-    .where(eq(clientsTable.id, params.data.clientId));
+  const client = await getAccessibleClient(req.appUser!, params.data.clientId);
   if (!client) {
     res.status(404).json({ error: "Client not found" });
     return;

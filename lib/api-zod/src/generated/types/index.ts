@@ -31,3 +31,7 @@ export * from './secretaryReview';
 export * from './secretaryReviewItem';
 export * from './secretaryReviewItemType';
 export * from './secretaryReviewPriority';
+export * from './teamMember';
+export * from './teamMemberStatus';
+export * from './teamMemberUpdate';
+export * from './teamRole';

@@ -41,7 +41,7 @@ function modelLabel(model: AiModel): string {
   return model.name;
 }
 
-export function AiModelSettings() {
+export function AiModelSettings({ isAdmin = false }: { isAdmin?: boolean }) {
   const [open, setOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState(getSelectedAiModel);
   const queryClient = useQueryClient();
@@ -55,6 +55,7 @@ export function AiModelSettings() {
     query: {
       queryKey: getGetAgentSettingsQueryKey(),
       staleTime: 30 * 1000,
+      enabled: isAdmin,
     },
   });
   const updateAgentSettings = useUpdateAgentSettings();
@@ -157,7 +158,7 @@ export function AiModelSettings() {
           )}
           </section>
 
-          <section className="space-y-3 border-t border-border pt-5">
+          {isAdmin && <section className="space-y-3 border-t border-border pt-5">
             <div>
               <h3 className="text-sm font-semibold text-foreground">Настройки агентов</h3>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -196,7 +197,7 @@ export function AiModelSettings() {
                 />
               </div>
             )}
-          </section>
+          </section>}
         </div>
       </DialogContent>
     </Dialog>

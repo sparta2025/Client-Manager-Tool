@@ -15,4 +15,8 @@ export interface Client {
   createdAt: Date;
   closedAt?: Date | null;
   updatedAt: Date;
+  /** @nullable */
+  assignedToUserId: number | null;
+  /** @nullable */
+  assignedToUserName: string | null;
 }

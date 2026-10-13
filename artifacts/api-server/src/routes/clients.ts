@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, caseStagesTable, clientsTable } from "@workspace/db";
+import { getTableColumns } from "drizzle-orm";
+import { appUsersTable, db, caseStagesTable, clientsTable } from "@workspace/db";
 import {
   CreateClientBody,
   UpdateClientParams,
@@ -11,24 +12,57 @@ import {
   UpdateClientResponse,
   GetClientsSummaryResponse,
 } from "@workspace/api-zod";
+import {
+  accessibleClientCondition,
+  canChangeCaseStatus,
+  clientVisibilityCondition,
+} from "../lib/authorization";
+import { requireAdministrator } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
-router.get("/clients", async (_req, res): Promise<void> => {
-  const clients = await db
-    .select()
+async function getClientForResponse(id: number) {
+  const [client] = await db
+    .select({
+      ...getTableColumns(clientsTable),
+      assignedToUserName: appUsersTable.displayName,
+    })
     .from(clientsTable)
+    .leftJoin(appUsersTable, eq(clientsTable.assignedToUserId, appUsersTable.id))
+    .where(eq(clientsTable.id, id));
+  return client;
+}
+
+async function isActiveAssignee(id: number | null): Promise<boolean> {
+  if (id === null) return true;
+  const [assignee] = await db
+    .select({ status: appUsersTable.status })
+    .from(appUsersTable)
+    .where(eq(appUsersTable.id, id));
+  return assignee?.status === "active";
+}
+
+router.get("/clients", async (req, res): Promise<void> => {
+  const clients = await db
+    .select({
+      ...getTableColumns(clientsTable),
+      assignedToUserName: appUsersTable.displayName,
+    })
+    .from(clientsTable)
+    .leftJoin(appUsersTable, eq(clientsTable.assignedToUserId, appUsersTable.id))
+    .where(clientVisibilityCondition(req.appUser!))
     .orderBy(clientsTable.createdAt);
   res.json(ListClientsResponse.parse(clients));
 });
 
-router.get("/clients/summary", async (_req, res): Promise<void> => {
+router.get("/clients/summary", async (req, res): Promise<void> => {
   const rows = await db
     .select({
       status: clientsTable.status,
       count: sql<number>`count(*)`,
     })
     .from(clientsTable)
+    .where(clientVisibilityCondition(req.appUser!))
     .groupBy(clientsTable.status);
 
   const summary = { new: 0, in_progress: 0, closed: 0, total: 0 };
@@ -55,6 +89,25 @@ router.post("/clients", async (req, res): Promise<void> => {
   const initialControlDate = parsed.data.initialControlDate;
   const initialIsUrgent = parsed.data.initialIsUrgent ?? false;
   const hasInitialIntake = Boolean(initialRequest || initialControlDate || initialIsUrgent);
+  const user = req.appUser!;
+  if (user.role !== "admin" && parsed.data.status && parsed.data.status !== "new") {
+    res.status(403).json({ error: "Only an administrator can create a case with a non-new status" });
+    return;
+  }
+  if (
+    user.role !== "admin" &&
+    parsed.data.assignedToUserId !== undefined &&
+    parsed.data.assignedToUserId !== user.id
+  ) {
+    res.status(403).json({ error: "Only an administrator can assign a case to another user" });
+    return;
+  }
+  const assignedToUserId =
+    user.role === "admin" ? (parsed.data.assignedToUserId ?? null) : user.id;
+  if (user.role === "admin" && !(await isActiveAssignee(assignedToUserId))) {
+    res.status(400).json({ error: "Cases can only be assigned to active team members" });
+    return;
+  }
 
   const client = await db.transaction(async (tx) => {
     const [createdClient] = await tx
@@ -63,6 +116,7 @@ router.post("/clients", async (req, res): Promise<void> => {
         name: parsed.data.name,
         phone: parsed.data.phone,
         status: parsed.data.status ?? "new",
+        assignedToUserId,
         ...(parsed.data.createdAt ? { createdAt: new Date(parsed.data.createdAt) } : {}),
       })
       .returning();
@@ -81,7 +135,8 @@ router.post("/clients", async (req, res): Promise<void> => {
     return createdClient;
   });
 
-  res.status(201).json(CreateClientResponse.parse(client));
+  const responseClient = await getClientForResponse(client.id);
+  res.status(201).json(CreateClientResponse.parse(responseClient));
 });
 
 router.patch("/clients/:id", async (req, res): Promise<void> => {
@@ -98,12 +153,36 @@ router.patch("/clients/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const { createdAt, closedAt, closingSummary, ...rest } = parsed.data;
+  const user = req.appUser!;
+  if (user.role !== "admin" && parsed.data.assignedToUserId !== undefined) {
+    res.status(403).json({ error: "Only an administrator can reassign a case" });
+    return;
+  }
+  if (
+    !canChangeCaseStatus(user) &&
+    (parsed.data.status !== undefined ||
+      parsed.data.createdAt !== undefined ||
+      parsed.data.closedAt !== undefined ||
+      parsed.data.closingSummary !== undefined)
+  ) {
+    res.status(403).json({ error: "Assistants cannot change case status or closure dates" });
+    return;
+  }
+  if (
+    user.role === "admin" &&
+    parsed.data.assignedToUserId !== undefined &&
+    !(await isActiveAssignee(parsed.data.assignedToUserId))
+  ) {
+    res.status(400).json({ error: "Cases can only be assigned to active team members" });
+    return;
+  }
+
+  const { createdAt, closedAt, closingSummary, assignedToUserId: newAssignee, ...rest } = parsed.data;
   const result = await db.transaction(async (tx) => {
     const [existing] = await tx
       .select({ status: clientsTable.status })
       .from(clientsTable)
-      .where(eq(clientsTable.id, params.data.id))
+      .where(accessibleClientCondition(user, params.data.id))
       .for("update");
 
     if (!existing) return { kind: "not-found" as const };
@@ -115,6 +194,7 @@ router.patch("/clients/:id", async (req, res): Promise<void> => {
     }
 
     const updates: Partial<typeof clientsTable.$inferInsert> = { ...rest };
+    if (newAssignee !== undefined) updates.assignedToUserId = newAssignee;
     if (createdAt !== undefined) {
       updates.createdAt = new Date(createdAt);
     }
@@ -156,10 +236,11 @@ router.patch("/clients/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(UpdateClientResponse.parse(result.client));
+  const responseClient = await getClientForResponse(result.client.id);
+  res.json(UpdateClientResponse.parse(responseClient));
 });
 
-router.delete("/clients/:id", async (req, res): Promise<void> => {
+router.delete("/clients/:id", requireAdministrator, async (req, res): Promise<void> => {
   const params = DeleteClientParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });

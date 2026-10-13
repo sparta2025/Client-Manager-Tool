@@ -12,6 +12,8 @@ import {
   getGetClientsSummaryQueryKey,
   getListSecretaryRemindersQueryKey,
   useListSecretaryReminders,
+  useListTeamMembers,
+  getListTeamMembersQueryKey,
 } from "@workspace/api-client-react";
 import type { AgentSecretaryRemindersResponse, Client } from "@workspace/api-client-react";
 import { format } from "date-fns";
@@ -40,6 +42,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AiModelSettings } from "@/components/ai-model-settings";
+import { useAccess } from "@/lib/access-context";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 function toDateTimeLocalValue(iso?: string | null): string {
   if (!iso) return "";
@@ -61,8 +65,10 @@ const STATUS_MAP = {
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
+  const { member, isAdmin, canManageStatus } = useAccess();
   const { data: clients, isLoading: isClientsLoading } = useListClients();
   const { data: summary, isLoading: isSummaryLoading } = useGetClientsSummary();
+  const teamQuery = useListTeamMembers({ query: { queryKey: getListTeamMembersQueryKey(), enabled: isAdmin } });
   const secretaryRemindersQuery = useListSecretaryReminders({
     query: {
       queryKey: getListSecretaryRemindersQueryKey(),
@@ -118,7 +124,7 @@ export default function Dashboard() {
                 Документация
               </Link>
             </Button>
-            <AiModelSettings />
+            <AiModelSettings isAdmin={isAdmin} />
             <AddClientModal />
           </div>
         </header>
@@ -163,6 +169,7 @@ export default function Dashboard() {
               <TableRow>
                 <TableHead className="w-[300px]">Клиент</TableHead>
                 <TableHead>Контакт</TableHead>
+                <TableHead>Ответственный</TableHead>
                 <TableHead>Статус</TableHead>
                 <TableHead>Дата обращения</TableHead>
                 <TableHead>Дата закрытия обращения</TableHead>
@@ -172,13 +179,13 @@ export default function Dashboard() {
             <TableBody>
               {isClientsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-16 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-16 text-muted-foreground">
                     Загрузка списка дел...
                   </TableCell>
                 </TableRow>
               ) : clients?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-16 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-16 text-muted-foreground">
                     Список дел пуст. Добавьте первого клиента.
                   </TableCell>
                 </TableRow>
@@ -192,6 +199,19 @@ export default function Dashboard() {
                     <TableCell className="font-medium text-primary py-4">{client.name}</TableCell>
                     <TableCell className="text-muted-foreground tabular-nums py-4">{client.phone}</TableCell>
                     <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
+                      {isAdmin ? <Select
+                        value={client.assignedToUserId === null ? "unassigned" : String(client.assignedToUserId)}
+                        onValueChange={(value) => updateClient.mutate({ id: client.id, data: { assignedToUserId: value === "unassigned" ? null : Number(value) } }, {
+                          onSuccess: () => queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() }),
+                          onError: () => toast.error("Не удалось изменить ответственного"),
+                        })}
+                      >
+                        <SelectTrigger className="h-8 w-[170px] border-transparent bg-transparent text-xs hover:border-border" aria-label={`Ответственный за дело ${client.name}`}><SelectValue placeholder="Не назначен" /></SelectTrigger>
+                        <SelectContent><SelectItem value="unassigned">Не назначен</SelectItem>{(teamQuery.data ?? []).filter((person) => person.status === "active").map((person) => <SelectItem key={person.id} value={String(person.id)}>{person.displayName || person.email || `Участник ${person.id}`}</SelectItem>)}</SelectContent>
+                      </Select> : <span className="text-sm text-muted-foreground">{client.assignedToUserName || (client.assignedToUserId === member.id ? "Вы" : "Не назначен")}</span>}
+                    </TableCell>
+                    <TableCell className="py-4" onClick={(e) => e.stopPropagation()}>
+                      {!canManageStatus ? <Badge variant={STATUS_MAP[client.status].variant}>{STATUS_MAP[client.status].label}</Badge> :
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button className="inline-flex items-center gap-1.5 focus:outline-none rounded-full ring-offset-background focus:ring-2 focus:ring-ring">
@@ -220,6 +240,7 @@ export default function Dashboard() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                      }
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm py-4">
                       {format(new Date(client.createdAt), "d MMMM yyyy, HH:mm", { locale: ru })}
@@ -231,8 +252,8 @@ export default function Dashboard() {
                     </TableCell>
                     <TableCell className="text-right py-4" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <EditClientModal client={client} />
-                        <Button 
+                        <EditClientModal client={client} canManageStatus={canManageStatus} />
+                        {isAdmin && <Button 
                           variant="ghost" 
                           size="icon" 
                           className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
@@ -243,7 +264,7 @@ export default function Dashboard() {
                           title="Удалить дело"
                         >
                           <Trash2 className="h-4 w-4" />
-                        </Button>
+                        </Button>}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -555,7 +576,7 @@ function AddClientModal() {
   );
 }
 
-function EditClientModal({ client }: { client: Client }) {
+function EditClientModal({ client, canManageStatus }: { client: Client; canManageStatus: boolean }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(client.name);
   const [phone, setPhone] = useState(client.phone);
@@ -596,9 +617,9 @@ function EditClientModal({ client }: { client: Client }) {
       data: {
         name: name.trim(),
         phone: phone.trim(),
-        status,
+        ...(canManageStatus ? { status } : {}),
         createdAt: fromDateTimeLocalValue(createdAt) ?? undefined,
-        closedAt: fromDateTimeLocalValue(closedAt),
+        ...(canManageStatus ? { closedAt: fromDateTimeLocalValue(closedAt) } : {}),
         ...(requiresClosingSummary ? { closingSummary: closingSummary.trim() } : {}),
       }
     }, {
@@ -658,6 +679,7 @@ function EditClientModal({ client }: { client: Client }) {
                   type="button"
                   variant="outline"
                   className="w-full justify-start rounded-lg bg-muted/30 hover:bg-muted/50 h-11 font-normal"
+                  disabled={!canManageStatus}
                 >
                   <Badge variant={STATUS_MAP[status].variant}>{STATUS_MAP[status].label}</Badge>
                 </Button>
@@ -689,7 +711,7 @@ function EditClientModal({ client }: { client: Client }) {
               className="rounded-lg bg-muted/30 focus:bg-background transition-colors h-11"
             />
           </div>
-          {requiresClosingSummary && (
+          {canManageStatus && requiresClosingSummary && (
             <div className="space-y-2">
               <Label htmlFor="edit-closing-summary">Итоговый результат</Label>
               <Textarea
@@ -704,7 +726,7 @@ function EditClientModal({ client }: { client: Client }) {
               />
             </div>
           )}
-          <div className="space-y-2">
+          {canManageStatus && <div className="space-y-2">
             <Label htmlFor="edit-closed-at">Дата закрытия обращения</Label>
             <Input
               id="edit-closed-at"
@@ -714,7 +736,7 @@ function EditClientModal({ client }: { client: Client }) {
               onChange={(e) => setClosedAt(e.target.value)}
               className="rounded-lg bg-muted/30 focus:bg-background transition-colors h-11"
             />
-          </div>
+          </div>}
           <div className="pt-2">
             <Button type="submit" data-testid="button-save-client-changes" className="w-full rounded-lg h-11" disabled={updateClient.isPending}>
               {updateClient.isPending ? "Сохранение..." : "Сохранить изменения"}

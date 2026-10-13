@@ -20,4 +20,6 @@ export interface ClientUpdate {
      * @minLength 1
      */
   closingSummary?: string;
+  /** @nullable */
+  assignedToUserId?: number | null;
 }
