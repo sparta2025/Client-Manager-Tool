@@ -30,6 +30,51 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Get AI agent settings
+ */
+export const GetAgentSettingsResponse = zod.object({
+  "autoSecretaryEnabled": zod.boolean(),
+  "checkIntervalMinutes": zod.number(),
+  "lastRunAt": zod.coerce.date().nullable(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update AI agent settings
+ */
+export const UpdateAgentSettingsBody = zod.object({
+  "autoSecretaryEnabled": zod.boolean()
+})
+
+export const UpdateAgentSettingsResponse = zod.object({
+  "autoSecretaryEnabled": zod.boolean(),
+  "checkIntervalMinutes": zod.number(),
+  "lastRunAt": zod.coerce.date().nullable(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List automated secretary reminders
+ */
+export const ListSecretaryRemindersResponse = zod.object({
+  "autoSecretaryEnabled": zod.boolean(),
+  "lastRunAt": zod.coerce.date().nullable(),
+  "reminders": zod.array(zod.object({
+  "id": zod.number(),
+  "clientId": zod.number(),
+  "clientName": zod.string(),
+  "stageId": zod.number(),
+  "stageName": zod.string(),
+  "type": zod.enum(['overdue', 'urgent', 'upcoming']),
+  "controlDate": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
  * @summary List clients
  */
 export const ListClientsResponseItem = zod.object({

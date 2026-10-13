@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { AiModel, getListAiModelsQueryKey, useListAiModels } from "@workspace/api-client-react";
+import {
+  AiModel,
+  getGetAgentSettingsQueryKey,
+  getListAiModelsQueryKey,
+  getListSecretaryRemindersQueryKey,
+  useGetAgentSettings,
+  useListAiModels,
+  useUpdateAgentSettings,
+} from "@workspace/api-client-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   DEFAULT_AI_MODEL,
   getSelectedAiModel,
@@ -34,12 +44,20 @@ function modelLabel(model: AiModel): string {
 export function AiModelSettings() {
   const [open, setOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState(getSelectedAiModel);
+  const queryClient = useQueryClient();
   const modelsQuery = useListAiModels({
     query: {
       queryKey: getListAiModelsQueryKey(),
       staleTime: 5 * 60 * 1000,
     },
   });
+  const agentSettingsQuery = useGetAgentSettings({
+    query: {
+      queryKey: getGetAgentSettingsQueryKey(),
+      staleTime: 30 * 1000,
+    },
+  });
+  const updateAgentSettings = useUpdateAgentSettings();
 
   useEffect(() => {
     if (!modelsQuery.data?.length) return;
@@ -53,6 +71,22 @@ export function AiModelSettings() {
     setSelectedModel(model);
     saveSelectedAiModel(model);
     toast.success("Модель AI выбрана");
+  };
+
+  const handleAutoSecretaryChange = (enabled: boolean) => {
+    updateAgentSettings.mutate(
+      { data: { autoSecretaryEnabled: enabled } },
+      {
+        onSuccess: async () => {
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: getGetAgentSettingsQueryKey() }),
+            queryClient.invalidateQueries({ queryKey: getListSecretaryRemindersQueryKey() }),
+          ]);
+          toast.success(enabled ? "Автоматические напоминания включены" : "Автоматические напоминания отключены");
+        },
+        onError: () => toast.error("Не удалось сохранить настройки агента"),
+      },
+    );
   };
 
   return (
@@ -70,9 +104,11 @@ export function AiModelSettings() {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>Настройка AI-модели</DialogTitle>
+          <DialogTitle>Настройки AI и агентов</DialogTitle>
         </DialogHeader>
-        <div className="space-y-5">
+        <div className="space-y-6">
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">Модель AI</h3>
           <p className="text-sm leading-6 text-muted-foreground">
             Выберите бесплатную модель OpenRouter для планирования этапов и AI-секретаря.
             Выбор сохраняется в этом браузере.
@@ -119,6 +155,48 @@ export function AiModelSettings() {
               </p>
             </div>
           )}
+          </section>
+
+          <section className="space-y-3 border-t border-border pt-5">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Настройки агентов</h3>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Автоматическая проверка сроков секретарём каждые 15 минут. Напоминания появятся на главной странице;
+                проверка работает по срокам и срочности из журнала без дополнительных запросов к AI-модели.
+              </p>
+            </div>
+            {agentSettingsQuery.isError ? (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm">
+                <p className="text-destructive">Не удалось загрузить настройки агента.</p>
+                <Button variant="outline" size="sm" onClick={() => agentSettingsQuery.refetch()}>
+                  Повторить
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-muted/20 p-4">
+                <div className="space-y-1">
+                  <label htmlFor="auto-secretary-toggle" className="text-sm font-medium text-foreground">
+                    Автоматические напоминания секретаря
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    {agentSettingsQuery.data?.autoSecretaryEnabled
+                      ? "Включены"
+                      : "Выключены"}
+                    {agentSettingsQuery.data?.lastRunAt
+                      ? ` · Последняя проверка: ${new Date(agentSettingsQuery.data.lastRunAt).toLocaleString("ru-RU")}`
+                      : ""}
+                  </p>
+                </div>
+                <Switch
+                  id="auto-secretary-toggle"
+                  data-testid="switch-auto-secretary"
+                  checked={agentSettingsQuery.data?.autoSecretaryEnabled ?? false}
+                  onCheckedChange={handleAutoSecretaryChange}
+                  disabled={agentSettingsQuery.isLoading || updateAgentSettings.isPending}
+                />
+              </div>
+            )}
+          </section>
         </div>
       </DialogContent>
     </Dialog>

@@ -214,3 +214,43 @@ export interface NextStepSuggestion {
   proposedStage: ProposedNextStage;
 }
 
+export interface AgentSettings {
+  autoSecretaryEnabled: boolean;
+  checkIntervalMinutes: number;
+  /** @nullable */
+  lastRunAt: string | null;
+  updatedAt: string;
+}
+
+export interface AgentSettingsUpdate {
+  autoSecretaryEnabled: boolean;
+}
+
+export type AgentSecretaryReminderType = typeof AgentSecretaryReminderType[keyof typeof AgentSecretaryReminderType];
+
+
+export const AgentSecretaryReminderType = {
+  overdue: 'overdue',
+  urgent: 'urgent',
+  upcoming: 'upcoming',
+} as const;
+
+export interface AgentSecretaryReminder {
+  id: number;
+  clientId: number;
+  clientName: string;
+  stageId: number;
+  stageName: string;
+  type: AgentSecretaryReminderType;
+  /** @nullable */
+  controlDate: string | null;
+  createdAt: string;
+}
+
+export interface AgentSecretaryRemindersResponse {
+  autoSecretaryEnabled: boolean;
+  /** @nullable */
+  lastRunAt: string | null;
+  reminders: AgentSecretaryReminder[];
+}
+

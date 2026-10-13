@@ -20,6 +20,9 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AgentSecretaryRemindersResponse,
+  AgentSettings,
+  AgentSettingsUpdate,
   AiModel,
   AiModelInput,
   CaseStage,
@@ -206,6 +209,231 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getHealthCheckQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAgentSettingsUrl = () => {
+
+
+
+
+  return `/api/agents/settings`
+}
+
+/**
+ * @summary Get AI agent settings
+ */
+export const getAgentSettings = async ( options?: RequestInit): Promise<AgentSettings> => {
+
+  return customFetch<AgentSettings>(getGetAgentSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAgentSettingsQueryKey = () => {
+    return [
+    `/api/agents/settings`
+    ] as const;
+    }
+
+
+export const getGetAgentSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getAgentSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAgentSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAgentSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAgentSettings>>> = ({ signal }) => getAgentSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAgentSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAgentSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getAgentSettings>>>
+export type GetAgentSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get AI agent settings
+ */
+
+export function useGetAgentSettings<TData = Awaited<ReturnType<typeof getAgentSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAgentSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAgentSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAgentSettingsUrl = () => {
+
+
+
+
+  return `/api/agents/settings`
+}
+
+/**
+ * @summary Update AI agent settings
+ */
+export const updateAgentSettings = async (agentSettingsUpdate: AgentSettingsUpdate, options?: RequestInit): Promise<AgentSettings> => {
+
+  return customFetch<AgentSettings>(getUpdateAgentSettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(agentSettingsUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateAgentSettingsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAgentSettings>>, TError,{data: BodyType<AgentSettingsUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAgentSettings>>, TError,{data: BodyType<AgentSettingsUpdate>}, TContext> => {
+
+const mutationKey = ['updateAgentSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAgentSettings>>, {data: BodyType<AgentSettingsUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAgentSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAgentSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateAgentSettings>>>
+    export type UpdateAgentSettingsMutationBody = BodyType<AgentSettingsUpdate>
+    export type UpdateAgentSettingsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update AI agent settings
+ */
+export const useUpdateAgentSettings = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAgentSettings>>, TError,{data: BodyType<AgentSettingsUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAgentSettings>>,
+        TError,
+        {data: BodyType<AgentSettingsUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateAgentSettingsMutationOptions(options));
+    }
+
+export const getListSecretaryRemindersUrl = () => {
+
+
+
+
+  return `/api/agents/secretary/reminders`
+}
+
+/**
+ * @summary List automated secretary reminders
+ */
+export const listSecretaryReminders = async ( options?: RequestInit): Promise<AgentSecretaryRemindersResponse> => {
+
+  return customFetch<AgentSecretaryRemindersResponse>(getListSecretaryRemindersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSecretaryRemindersQueryKey = () => {
+    return [
+    `/api/agents/secretary/reminders`
+    ] as const;
+    }
+
+
+export const getListSecretaryRemindersQueryOptions = <TData = Awaited<ReturnType<typeof listSecretaryReminders>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSecretaryReminders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSecretaryRemindersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSecretaryReminders>>> = ({ signal }) => listSecretaryReminders({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSecretaryReminders>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSecretaryRemindersQueryResult = NonNullable<Awaited<ReturnType<typeof listSecretaryReminders>>>
+export type ListSecretaryRemindersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List automated secretary reminders
+ */
+
+export function useListSecretaryReminders<TData = Awaited<ReturnType<typeof listSecretaryReminders>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSecretaryReminders>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSecretaryRemindersQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

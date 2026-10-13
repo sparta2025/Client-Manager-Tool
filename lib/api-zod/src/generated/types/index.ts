@@ -6,6 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './agentSecretaryReminder';
+export * from './agentSecretaryRemindersResponse';
+export * from './agentSecretaryReminderType';
+export * from './agentSettings';
+export * from './agentSettingsUpdate';
 export * from './aiModel';
 export * from './aiModelInput';
 export * from './caseStage';

@@ -16,6 +16,8 @@ tags:
     description: Case stage journal operations
   - name: ai
     description: AI assistants for planning and deadline reminders
+  - name: agents
+    description: AI agent settings and automated reminders
 paths:
   /ai/models:
     get:
@@ -46,6 +48,47 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /agents/settings:
+    get:
+      operationId: getAgentSettings
+      tags: [agents]
+      summary: Get AI agent settings
+      responses:
+        "200":
+          description: Current agent settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettings"
+    patch:
+      operationId: updateAgentSettings
+      tags: [agents]
+      summary: Update AI agent settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentSettingsUpdate"
+      responses:
+        "200":
+          description: Updated agent settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSettings"
+  /agents/secretary/reminders:
+    get:
+      operationId: listSecretaryReminders
+      tags: [agents]
+      summary: List automated secretary reminders
+      responses:
+        "200":
+          description: Current in-app reminders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentSecretaryRemindersResponse"
   /clients:
     get:
       operationId: listClients
@@ -712,4 +755,60 @@ components:
           format: date-time
         nextPlans:
           type: ["string", "null"]
+    AgentSettings:
+      type: object
+      required: [autoSecretaryEnabled, checkIntervalMinutes, lastRunAt, updatedAt]
+      properties:
+        autoSecretaryEnabled:
+          type: boolean
+        checkIntervalMinutes:
+          type: integer
+        lastRunAt:
+          type: ["string", "null"]
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    AgentSettingsUpdate:
+      type: object
+      required: [autoSecretaryEnabled]
+      properties:
+        autoSecretaryEnabled:
+          type: boolean
+    AgentSecretaryRemindersResponse:
+      type: object
+      required: [autoSecretaryEnabled, lastRunAt, reminders]
+      properties:
+        autoSecretaryEnabled:
+          type: boolean
+        lastRunAt:
+          type: ["string", "null"]
+          format: date-time
+        reminders:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentSecretaryReminder"
+    AgentSecretaryReminder:
+      type: object
+      required: [id, clientId, clientName, stageId, stageName, type, controlDate, createdAt]
+      properties:
+        id:
+          type: integer
+        clientId:
+          type: integer
+        clientName:
+          type: string
+        stageId:
+          type: integer
+        stageName:
+          type: string
+        type:
+          type: string
+          enum: [overdue, urgent, upcoming]
+        controlDate:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
 

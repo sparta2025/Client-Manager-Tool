@@ -10,8 +10,10 @@ import {
   useDeleteClient,
   getListClientsQueryKey,
   getGetClientsSummaryQueryKey,
+  getListSecretaryRemindersQueryKey,
+  useListSecretaryReminders,
 } from "@workspace/api-client-react";
-import type { Client } from "@workspace/api-client-react";
+import type { AgentSecretaryRemindersResponse, Client } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { 
@@ -21,8 +23,9 @@ import {
   Briefcase, 
   UserPlus, 
   CheckCircle2, 
-  Clock 
-  , BookOpen
+  Clock,
+  BookOpen,
+  BellRing,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -60,6 +63,12 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { data: clients, isLoading: isClientsLoading } = useListClients();
   const { data: summary, isLoading: isSummaryLoading } = useGetClientsSummary();
+  const secretaryRemindersQuery = useListSecretaryReminders({
+    query: {
+      queryKey: getListSecretaryRemindersQueryKey(),
+      refetchInterval: 60 * 1000,
+    },
+  });
   
   const [, setLocation] = useLocation();
   const updateClient = useUpdateClient();
@@ -140,6 +149,10 @@ export default function Dashboard() {
             icon={<CheckCircle2 className="h-4 w-4 text-[#15803d]" />} 
           />
         </section>
+
+        {secretaryRemindersQuery.data?.autoSecretaryEnabled && (
+          <AutomaticSecretaryReminders response={secretaryRemindersQuery.data} />
+        )}
 
         <section className="bg-card border rounded-2xl shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200 fill-mode-both">
           <div className="p-6 border-b border-border bg-card">
@@ -248,6 +261,63 @@ export default function Dashboard() {
         />
       </div>
     </div>
+  );
+}
+
+function AutomaticSecretaryReminders({ response }: { response: AgentSecretaryRemindersResponse }) {
+  const labelByType = {
+    overdue: "Просрочено",
+    urgent: "Срочно",
+    upcoming: "Скоро срок",
+  } as const;
+
+  return (
+    <Card className="border-amber-300/70 bg-amber-50/50 dark:bg-amber-950/10" data-testid="card-automatic-secretary-reminders">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <BellRing className="h-5 w-5 text-amber-700" />
+          <CardTitle className="text-lg font-serif text-primary">Напоминания секретаря</CardTitle>
+          <Badge variant="outline" className="ml-auto">{response.reminders.length}</Badge>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Проверка сроков выполняется автоматически каждые 15 минут.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {response.reminders.length === 0 ? (
+          <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+            Сейчас нет просроченных, срочных или ближайших контрольных дат.
+          </p>
+        ) : (
+          response.reminders.map((reminder) => (
+            <Link
+              key={reminder.id}
+              href={`/clients/${reminder.clientId}`}
+              data-testid={`link-secretary-reminder-${reminder.id}`}
+              className="flex flex-col gap-2 rounded-xl border bg-card p-3 transition-colors hover:border-primary/30 hover:bg-muted/30 sm:flex-row sm:items-center"
+            >
+              <Badge variant={reminder.type === "overdue" ? "destructive" : "outline"} className="w-fit shrink-0">
+                {labelByType[reminder.type]}
+              </Badge>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-primary">{reminder.clientName}</p>
+                <p className="truncate text-sm text-muted-foreground">{reminder.stageName}</p>
+              </div>
+              {reminder.controlDate && (
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {format(new Date(reminder.controlDate), "d MMM yyyy, HH:mm", { locale: ru })}
+                </span>
+              )}
+            </Link>
+          ))
+        )}
+        {response.lastRunAt && response.reminders.length > 0 && (
+          <p className="pt-1 text-xs text-muted-foreground">
+            Последняя проверка: {format(new Date(response.lastRunAt), "d MMM yyyy, HH:mm", { locale: ru })}
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
