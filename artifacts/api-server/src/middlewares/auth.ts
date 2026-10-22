@@ -2,6 +2,7 @@ import { count, eq, sql } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { appUsersTable, db, type TeamMemberStatus, type TeamRole } from "@workspace/db";
+import { createEnsureLocalUser } from "../lib/local-user-provisioning.js";
 
 export type CurrentAppUser = {
   id: number;
@@ -26,59 +27,48 @@ function stringClaim(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-async function ensureLocalUser(
-  clerkUserId: string,
-  profile: { displayName: string | null; email: string | null },
-): Promise<CurrentAppUser> {
-  const [existing] = await db
-    .select()
-    .from(appUsersTable)
-    .where(eq(appUsersTable.clerkUserId, clerkUserId));
-
-  if (existing) {
-    const changes: Partial<typeof appUsersTable.$inferInsert> = {};
-    if (profile.displayName && profile.displayName !== existing.displayName) {
-      changes.displayName = profile.displayName;
-    }
-    if (profile.email && profile.email !== existing.email) {
-      changes.email = profile.email;
-    }
-    if (Object.keys(changes).length > 0) {
-      const [updated] = await db
-        .update(appUsersTable)
-        .set(changes)
-        .where(eq(appUsersTable.id, existing.id))
-        .returning();
-      return updated;
-    }
-    return existing;
-  }
-
-  return db.transaction(async (tx) => {
-    // Serialize first-login provisioning so simultaneous registrations cannot
-    // both receive the administrator role.
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(68434921)`);
-    const [concurrentUser] = await tx
+const ensureLocalUser = createEnsureLocalUser<CurrentAppUser>({
+  findByClerkUserId: async (clerkUserId) => {
+    const [user] = await db
       .select()
       .from(appUsersTable)
       .where(eq(appUsersTable.clerkUserId, clerkUserId));
-    if (concurrentUser) return concurrentUser;
-
-    const [userCount] = await tx.select({ count: count() }).from(appUsersTable);
-    const isFirstUser = Number(userCount?.count ?? 0) === 0;
-    const [created] = await tx
-      .insert(appUsersTable)
-      .values({
-        clerkUserId,
-        displayName: profile.displayName,
-        email: profile.email,
-        role: isFirstUser ? "admin" : "lawyer",
-        status: isFirstUser ? "active" : "pending",
-      })
+    return user;
+  },
+  updateProfile: async (id, changes) => {
+    const [user] = await db
+      .update(appUsersTable)
+      .set(changes)
+      .where(eq(appUsersTable.id, id))
       .returning();
-    return created;
-  });
-}
+    if (!user) throw new Error(`Unable to update local user ${id}`);
+    return user;
+  },
+  transaction: (callback) =>
+    db.transaction((tx) =>
+      callback({
+        lockInitialRegistration: async () => {
+          await tx.execute(sql`SELECT pg_advisory_xact_lock(68434921)`);
+        },
+        findByClerkUserId: async (clerkUserId) => {
+          const [user] = await tx
+            .select()
+            .from(appUsersTable)
+            .where(eq(appUsersTable.clerkUserId, clerkUserId));
+          return user;
+        },
+        countUsers: async () => {
+          const [userCount] = await tx.select({ count: count() }).from(appUsersTable);
+          return Number(userCount?.count ?? 0);
+        },
+        createUser: async (userData) => {
+          const [user] = await tx.insert(appUsersTable).values(userData).returning();
+          if (!user) throw new Error("Unable to create local user");
+          return user;
+        },
+      }),
+    ),
+});
 
 export const requireClerkUser: RequestHandler = async (
   req: Request,
@@ -104,21 +94,4 @@ export const requireClerkUser: RequestHandler = async (
   next();
 };
 
-export const requireActiveUser: RequestHandler = (req, res, next): void => {
-  if (req.appUser?.status !== "active") {
-    res.status(403).json({
-      error: req.appUser?.status === "disabled" ? "Account disabled" : "Administrator approval required",
-      code: req.appUser?.status === "disabled" ? "ACCOUNT_DISABLED" : "ACCOUNT_PENDING",
-    });
-    return;
-  }
-  next();
-};
-
-export const requireAdministrator: RequestHandler = (req, res, next): void => {
-  if (req.appUser?.role !== "admin") {
-    res.status(403).json({ error: "Administrator access required" });
-    return;
-  }
-  next();
-};
+export { requireActiveUser, requireAdministrator } from "./auth-guards.js";
