@@ -37,6 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { AiModelSettings } from "@/components/ai-model-settings";
 import { getSelectedAiModel } from "@/lib/ai-model-storage";
+import { useAccess } from "@/lib/access-context";
 
 const STATUS_MAP = {
   new: { label: "Новый", variant: "new" as const },
@@ -57,6 +58,7 @@ function fromDateTimeLocalValue(value: string): string | null {
 }
 
 export default function ClientDetailPage() {
+  const { isAdmin, canDeleteStages } = useAccess();
   const params = useParams();
   const clientId = Number(params.id);
   const [, setLocation] = useLocation();
@@ -87,7 +89,7 @@ export default function ClientDetailPage() {
       <div className="min-h-screen bg-background flex items-center justify-center font-sans text-foreground">
         <div className="text-center space-y-4">
           <h1 className="text-2xl font-serif text-primary">Клиент не найден</h1>
-          <Button variant="outline" onClick={() => setLocation("/")}>Вернуться на главную</Button>
+          <Button variant="outline" onClick={() => setLocation("/dashboard")}>Вернуться к делам</Button>
         </div>
       </div>
     );
@@ -220,7 +222,7 @@ export default function ClientDetailPage() {
         {/* Header Section */}
         <div className="space-y-6">
           <Button variant="ghost" asChild className="mb-2 -ml-4 text-muted-foreground hover:text-primary">
-            <Link href="/">
+            <Link href="/dashboard">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Назад
             </Link>
@@ -286,7 +288,7 @@ export default function ClientDetailPage() {
               </div>
             )}
             <div className="flex justify-end">
-              <AiModelSettings />
+              <AiModelSettings isAdmin={isAdmin} />
             </div>
           </div>
         </div>
@@ -445,7 +447,7 @@ export default function ClientDetailPage() {
                         {!isReadOnly && (
                           <div className="flex items-center gap-1">
                             <StageModal clientId={clientId} clientName={client.name} mode="edit" stage={stage} />
-                            <Button 
+                            {canDeleteStages && <Button 
                               variant="ghost" 
                               size="icon" 
                               className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
@@ -453,7 +455,7 @@ export default function ClientDetailPage() {
                               title="Удалить этап"
                             >
                               <Trash2 className="h-4 w-4" />
-                            </Button>
+                            </Button>}
                           </div>
                         )}
                       </div>

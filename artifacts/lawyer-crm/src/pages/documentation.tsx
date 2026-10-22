@@ -28,7 +28,7 @@ export default function DocumentationPage() {
       <div className="max-w-5xl mx-auto space-y-8">
         <header className="border-b border-border pb-8">
           <Button variant="ghost" asChild className="-ml-3 mb-5 text-muted-foreground hover:text-primary">
-            <Link href="/">
+            <Link href="/dashboard">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Вернуться к делам
             </Link>
@@ -193,7 +193,7 @@ export default function DocumentationPage() {
 
         <footer className="flex flex-col gap-3 border-t border-border pt-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>CRM юриста · рабочая документация</span>
-          <Link href="/" className="inline-flex items-center gap-2 font-medium text-primary hover:underline">
+          <Link href="/dashboard" className="inline-flex items-center gap-2 font-medium text-primary hover:underline">
             <CheckCircle2 className="h-4 w-4" />
             Перейти к списку дел
           </Link>

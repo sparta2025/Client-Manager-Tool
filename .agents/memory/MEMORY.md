@@ -1,3 +1,4 @@
 - [OpenRouter free providers](openrouter-free-providers.md) — бесплатные провайдеры могут не поддерживать response_format; используйте JSON-инструкцию и серверную валидацию.
 - [Production data copy](replit-prod-data-copy.md) — данные development переносятся в production через Publish с включённой опцией копирования текущих данных.
 - [OpenAPI body schemas](openapi-body-schemas.md) — Orval генерирует runtime-Zod-схемы request body по operationId, а имя общей схемы остаётся типом.
+- [CRM team access](crm-team-access.md) — роли: администратор, юрист и помощник; не-администраторы видят только назначенные дела.

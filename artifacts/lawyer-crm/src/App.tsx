@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { ClerkProvider, SignIn, SignUp, useAuth, useClerk } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
+import { ruRU } from "@clerk/localizations";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, BriefcaseBusiness, CircleUserRound, LogOut, UsersRound } from "lucide-react";
 import { Link, Redirect, Route, Router as WouterRouter, Switch, useLocation } from "wouter";
@@ -19,6 +20,25 @@ const queryClient = new QueryClient();
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 const clerkPubKey = publishableKeyFromHost(window.location.hostname, import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const appLocalization = {
+  ...ruRU,
+  signIn: {
+    ...ruRU.signIn,
+    start: {
+      ...ruRU.signIn?.start,
+      title: "С возвращением",
+      subtitle: "Войдите в рабочий аккаунт",
+    },
+  },
+  signUp: {
+    ...ruRU.signUp,
+    start: {
+      ...ruRU.signUp?.start,
+      title: "Создание аккаунта",
+      subtitle: "Запросите доступ к CRM команды",
+    },
+  },
+};
 
 function stripBase(path: string) {
   return basePath && path.startsWith(basePath) ? path.slice(basePath.length) || "/" : path;
@@ -197,13 +217,13 @@ function Router() {
 
 function ClerkRoutes() {
   const [, setLocation] = useLocation();
-  return <ClerkProvider publishableKey={clerkPubKey} proxyUrl={clerkProxyUrl} appearance={clerkAppearance} signInUrl={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} localization={{ signIn: { start: { title: "С возвращением", subtitle: "Войдите в рабочий аккаунт" } }, signUp: { start: { title: "Создание аккаунта", subtitle: "Запросите доступ к CRM команды" } } }} routerPush={(to) => setLocation(stripBase(to))} routerReplace={(to) => setLocation(stripBase(to), { replace: true })}>
+  return <ClerkProvider publishableKey={clerkPubKey} proxyUrl={clerkProxyUrl} appearance={clerkAppearance} signInUrl={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} localization={appLocalization} routerPush={(to) => setLocation(stripBase(to))} routerReplace={(to) => setLocation(stripBase(to), { replace: true })}>
     <QueryClientProvider client={queryClient}><ClerkCacheInvalidator /><Router /><Toaster position="top-right" richColors /></QueryClientProvider>
   </ClerkProvider>;
 }
 
 function App() {
-  if (!clerkPubKey) return <main className="grid min-h-[100dvh] place-items-center bg-background p-6"><div className="max-w-lg rounded-2xl border bg-card p-8 text-center"><h1 className="font-serif text-2xl text-primary">Требуется настройка входа</h1><p className="mt-2 text-sm text-muted-foreground">Добавьте ключ VITE_CLERK_PUBLISHABLE_KEY в конфигурацию окружения.</p></div></main>;
+  if (!clerkPubKey) throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY");
   return <WouterRouter base={basePath}><ClerkRoutes /></WouterRouter>;
 }
 

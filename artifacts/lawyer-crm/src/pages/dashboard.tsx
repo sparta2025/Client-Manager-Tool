@@ -603,7 +603,7 @@ function EditClientModal({ client, canManageStatus }: { client: Client; canManag
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !phone.trim() || !createdAt) {
+    if (!name.trim() || !phone.trim() || (canManageStatus && !createdAt)) {
       toast.error("Пожалуйста, заполните все обязательные поля");
       return;
     }
@@ -618,7 +618,7 @@ function EditClientModal({ client, canManageStatus }: { client: Client; canManag
         name: name.trim(),
         phone: phone.trim(),
         ...(canManageStatus ? { status } : {}),
-        createdAt: fromDateTimeLocalValue(createdAt) ?? undefined,
+        ...(canManageStatus ? { createdAt: fromDateTimeLocalValue(createdAt) ?? undefined } : {}),
         ...(canManageStatus ? { closedAt: fromDateTimeLocalValue(closedAt) } : {}),
         ...(requiresClosingSummary ? { closingSummary: closingSummary.trim() } : {}),
       }
@@ -700,7 +700,7 @@ function EditClientModal({ client, canManageStatus }: { client: Client; canManag
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <div className="space-y-2">
+          {canManageStatus && <div className="space-y-2">
             <Label htmlFor="edit-created-at">Дата обращения</Label>
             <Input
               id="edit-created-at"
@@ -710,7 +710,7 @@ function EditClientModal({ client, canManageStatus }: { client: Client; canManag
               onChange={(e) => setCreatedAt(e.target.value)}
               className="rounded-lg bg-muted/30 focus:bg-background transition-colors h-11"
             />
-          </div>
+          </div>}
           {canManageStatus && requiresClosingSummary && (
             <div className="space-y-2">
               <Label htmlFor="edit-closing-summary">Итоговый результат</Label>
