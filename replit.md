@@ -11,6 +11,7 @@
 - `pnpm --filter @workspace/api-spec run codegen` — генерация API-хуков и Zod-схем из OpenAPI
 - `pnpm --filter @workspace/db run push` — применение схемы базы только в development
 - Обязательные переменные: `DATABASE_URL`, `PORT`, `BASE_PATH`
+- Для первого входа в Development откройте `/sign-up` и создайте аккаунт со своей почтой и паролем. В пустой базе первый пользователь становится активным администратором; остальные аккаунты ожидают подтверждения. Общих тестовых логина и пароля нет, аккаунты Development и Production разделены.
 - Для AI: секрет `OPENROUTER_API_KEY`
 
 ## Stack
