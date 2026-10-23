@@ -5,10 +5,15 @@ import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
 import { ruRU } from "@clerk/localizations";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, BriefcaseBusiness, CircleUserRound, LogOut, UsersRound } from "lucide-react";
+import { Bell, BookOpen, BriefcaseBusiness, CircleUserRound, LogOut, UsersRound } from "lucide-react";
 import { Link, Redirect, Route, Router as WouterRouter, Switch, useLocation } from "wouter";
-import { Toaster } from "sonner";
-import { useGetCurrentTeamMember, getGetCurrentTeamMemberQueryKey } from "@workspace/api-client-react";
+import { toast, Toaster } from "sonner";
+import {
+  getGetCurrentTeamMemberQueryKey,
+  getListTeamAccessNotificationsQueryKey,
+  useGetCurrentTeamMember,
+  useListTeamAccessNotifications,
+} from "@workspace/api-client-react";
 import Dashboard from "@/pages/dashboard";
 import ClientDetailPage from "@/pages/client-detail";
 import DocumentationPage from "@/pages/documentation";
@@ -42,6 +47,18 @@ const appLocalization = {
 
 function stripBase(path: string) {
   return basePath && path.startsWith(basePath) ? path.slice(basePath.length) || "/" : path;
+}
+
+function getSeenAccessRequestIds(adminId: number): Set<number> {
+  try {
+    const stored = window.localStorage.getItem(`crm:seen-access-requests:${adminId}`);
+    const parsed: unknown = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed)
+      ? new Set(parsed.filter((id): id is number => typeof id === "number" && Number.isInteger(id)))
+      : new Set();
+  } catch {
+    return new Set();
+  }
 }
 
 const clerkAppearance = {
@@ -175,6 +192,44 @@ function AppShell({ children }: { children: ReactNode }) {
   const [, setLocation] = useLocation();
   const { member, isAdmin } = useAccess();
   const name = member.displayName || member.email || "Сотрудник";
+  const notificationsQuery = useListTeamAccessNotifications({
+    query: {
+      queryKey: getListTeamAccessNotificationsQueryKey(),
+      enabled: isAdmin,
+      refetchInterval: isAdmin ? 15_000 : false,
+    },
+  });
+  const previousNotificationIds = useRef<Set<number> | null>(null);
+  const notificationOwnerId = useRef<number | null>(null);
+  useEffect(() => {
+    if (!isAdmin || !notificationsQuery.data) return;
+    if (notificationOwnerId.current !== member.id) {
+      notificationOwnerId.current = member.id;
+      previousNotificationIds.current = getSeenAccessRequestIds(member.id);
+    }
+    const seenIds = previousNotificationIds.current ?? new Set<number>();
+    const unseenNotifications = notificationsQuery.data.filter((notification) => !seenIds.has(notification.id));
+    if (unseenNotifications.length > 0) {
+      const description = unseenNotifications.length === 1
+        ? `${unseenNotifications[0].displayName || unseenNotifications[0].email || "Новый пользователь"} просит доступ к CRM.`
+        : `Ожидают решения: ${unseenNotifications.length} новых заявок.`;
+      toast.info("Новая заявка на доступ", {
+        description,
+        action: {
+          label: "Открыть команду",
+          onClick: () => setLocation("/team"),
+        },
+      });
+      for (const notification of unseenNotifications) seenIds.add(notification.id);
+      try {
+        window.localStorage.setItem(`crm:seen-access-requests:${member.id}`, JSON.stringify([...seenIds]));
+      } catch {
+        // The in-memory set still prevents repeated toasts during this session.
+      }
+    }
+    previousNotificationIds.current = seenIds;
+  }, [isAdmin, member.id, notificationsQuery.data, setLocation]);
+  const pendingRequestCount = notificationsQuery.data?.length ?? 0;
   return <div className="min-h-[100dvh] bg-background">
     <header className="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-3 md:px-8">
@@ -183,6 +238,10 @@ function AppShell({ children }: { children: ReactNode }) {
           <Button variant="ghost" size="sm" onClick={() => setLocation("/dashboard")}><BriefcaseBusiness className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Дела</span></Button>
           <Button variant="ghost" size="sm" onClick={() => setLocation("/documentation")}><BookOpen className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Справочник</span></Button>
           {isAdmin && <Button variant="ghost" size="sm" onClick={() => setLocation("/team")}><UsersRound className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Команда</span></Button>}
+          {isAdmin && <Button variant="ghost" size="sm" className="relative" onClick={() => setLocation("/team")} aria-label={`Заявки на доступ: ${pendingRequestCount}`} title={`Заявки на доступ: ${pendingRequestCount}`} data-testid="button-access-request-notifications">
+            <Bell className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Заявки</span>
+            {pendingRequestCount > 0 && <span className="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-semibold leading-none text-destructive-foreground">{pendingRequestCount}</span>}
+          </Button>}
         </nav>
         <div className="flex items-center gap-2">
           <div className="hidden text-right sm:block"><p className="max-w-40 truncate text-xs font-semibold text-primary">{name}</p><p className="text-[10px] text-muted-foreground">{member.role === "admin" ? "Администратор" : member.role === "lawyer" ? "Юрист" : "Ассистент"}</p></div>

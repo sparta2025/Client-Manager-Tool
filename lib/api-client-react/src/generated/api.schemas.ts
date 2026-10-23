@@ -295,6 +295,16 @@ export interface TeamMember {
   updatedAt: string;
 }
 
+export interface TeamAccessNotification {
+  id: number;
+  requesterId: number;
+  /** @nullable */
+  displayName: string | null;
+  /** @nullable */
+  email: string | null;
+  createdAt: string;
+}
+
 export interface TeamMemberUpdate {
   role?: TeamRole;
   status?: TeamMemberStatus;

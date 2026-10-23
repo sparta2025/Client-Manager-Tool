@@ -21,6 +21,7 @@ export type LocalUserProvisioningTransaction<User extends LocalUserProvisioningR
       status: "active" | "pending";
     },
   ): Promise<User>;
+  createAccessRequestNotification(requesterId: number): Promise<void>;
 };
 
 export type LocalUserProvisioningStore<User extends LocalUserProvisioningRecord> = {
@@ -61,13 +62,17 @@ export function createEnsureLocalUser<User extends LocalUserProvisioningRecord>(
       if (concurrentUser) return concurrentUser;
 
       const isFirstUser = (await transaction.countUsers()) === 0;
-      return transaction.createUser({
+      const user = await transaction.createUser({
         clerkUserId,
         displayName: profile.displayName,
         email: profile.email,
         role: isFirstUser ? "admin" : "lawyer",
         status: isFirstUser ? "active" : "pending",
       });
+      if (user.status === "pending") {
+        await transaction.createAccessRequestNotification(user.id);
+      }
+      return user;
     });
   };
 }

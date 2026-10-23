@@ -8,6 +8,7 @@ import {
 
 function createMemoryStore() {
   const users = [];
+  const notifications = [];
   let nextId = 1;
   let lockQueue = Promise.resolve();
 
@@ -47,6 +48,11 @@ function createMemoryStore() {
           users.push(user);
           return user;
         },
+        async createAccessRequestNotification(requesterId) {
+          if (!notifications.some((notification) => notification.requesterId === requesterId)) {
+            notifications.push({ requesterId });
+          }
+        },
       };
 
       try {
@@ -57,7 +63,7 @@ function createMemoryStore() {
     },
   };
 
-  return { users, ensureLocalUser: createEnsureLocalUser(store) };
+  return { users, notifications, ensureLocalUser: createEnsureLocalUser(store) };
 }
 
 function runMiddleware(middleware, appUser) {
@@ -97,7 +103,7 @@ test("the first local account is an active administrator", async () => {
 });
 
 test("later accounts are pending and cannot access active or administrator routes", async () => {
-  const { ensureLocalUser } = createMemoryStore();
+  const { ensureLocalUser, notifications } = createMemoryStore();
   await ensureLocalUser("clerk-first", { displayName: null, email: null });
   const laterUser = await ensureLocalUser("clerk-next", {
     displayName: "Later User",
@@ -106,6 +112,13 @@ test("later accounts are pending and cannot access active or administrator route
 
   assert.equal(laterUser.role, "lawyer");
   assert.equal(laterUser.status, "pending");
+  assert.deepEqual(notifications, [{ requesterId: laterUser.id }]);
+
+  await ensureLocalUser("clerk-next", {
+    displayName: "Later User",
+    email: "later@example.test",
+  });
+  assert.equal(notifications.length, 1, "signing in again must not create another notification");
 
   const activeAccess = runMiddleware(requireActiveUser, laterUser);
   assert.equal(activeAccess.statusCode, 403);
@@ -142,13 +155,15 @@ test("simultaneous first registrations grant administrator status to exactly one
 });
 
 test("simultaneous requests for the same account create only one local user", async () => {
-  const { users, ensureLocalUser } = createMemoryStore();
+  const { users, notifications, ensureLocalUser } = createMemoryStore();
+  await ensureLocalUser("clerk-first", { displayName: null, email: null });
   const registrations = await Promise.all(
     Array.from({ length: 5 }, () =>
       ensureLocalUser("clerk-same-user", { displayName: "Same User", email: null }),
     ),
   );
 
-  assert.equal(users.length, 1);
+  assert.equal(users.length, 2);
+  assert.equal(notifications.length, 1);
   assert.ok(registrations.every((user) => user.id === registrations[0].id));
 });

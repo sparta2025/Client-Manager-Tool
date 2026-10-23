@@ -1,7 +1,13 @@
 import { count, eq, sql } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { appUsersTable, db, type TeamMemberStatus, type TeamRole } from "@workspace/db";
+import {
+  appUsersTable,
+  db,
+  teamAccessNotificationsTable,
+  type TeamMemberStatus,
+  type TeamRole,
+} from "@workspace/db";
 import { createEnsureLocalUser } from "../lib/local-user-provisioning.js";
 
 export type CurrentAppUser = {
@@ -65,6 +71,12 @@ const ensureLocalUser = createEnsureLocalUser<CurrentAppUser>({
           const [user] = await tx.insert(appUsersTable).values(userData).returning();
           if (!user) throw new Error("Unable to create local user");
           return user;
+        },
+        createAccessRequestNotification: async (requesterId) => {
+          await tx
+            .insert(teamAccessNotificationsTable)
+            .values({ requesterId })
+            .onConflictDoNothing({ target: teamAccessNotificationsTable.requesterId });
         },
       }),
     ),

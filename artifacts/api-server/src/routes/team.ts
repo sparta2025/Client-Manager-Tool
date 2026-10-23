@@ -1,11 +1,13 @@
-import { and, count, eq, ne, sql } from "drizzle-orm";
+import { and, count, desc, eq, ne, sql } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   appUsersTable,
   db,
+  teamAccessNotificationsTable,
 } from "@workspace/db";
 import {
   GetCurrentTeamMemberResponse,
+  ListTeamAccessNotificationsResponse,
   ListTeamMembersResponse,
   UpdateTeamMemberBody,
   UpdateTeamMemberParams,
@@ -38,6 +40,22 @@ export function getCurrentTeamMember(req: Request, res: Response): void {
 router.get("/team/members", requireAdministrator, async (_req, res): Promise<void> => {
   const members = await db.select().from(appUsersTable).orderBy(appUsersTable.createdAt);
   res.json(ListTeamMembersResponse.parse(members.map(toTeamMember)));
+});
+
+router.get("/team/notifications", requireAdministrator, async (_req, res): Promise<void> => {
+  const notifications = await db
+    .select({
+      id: teamAccessNotificationsTable.id,
+      requesterId: appUsersTable.id,
+      displayName: appUsersTable.displayName,
+      email: appUsersTable.email,
+      createdAt: teamAccessNotificationsTable.createdAt,
+    })
+    .from(teamAccessNotificationsTable)
+    .innerJoin(appUsersTable, eq(teamAccessNotificationsTable.requesterId, appUsersTable.id))
+    .where(eq(appUsersTable.status, "pending"))
+    .orderBy(desc(teamAccessNotificationsTable.createdAt));
+  res.json(ListTeamAccessNotificationsResponse.parse(notifications));
 });
 
 router.patch("/team/members/:id", requireAdministrator, async (req, res): Promise<void> => {
@@ -91,6 +109,11 @@ router.patch("/team/members/:id", requireAdministrator, async (req, res): Promis
       .set(parsed.data)
       .where(eq(appUsersTable.id, existing.id))
       .returning();
+    if (existing.status === "pending" && nextStatus !== "pending") {
+      await tx
+        .delete(teamAccessNotificationsTable)
+        .where(eq(teamAccessNotificationsTable.requesterId, existing.id));
+    }
     return { kind: "updated" as const, member: updated };
   });
 
