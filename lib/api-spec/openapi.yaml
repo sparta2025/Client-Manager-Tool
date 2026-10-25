@@ -121,22 +121,6 @@ paths:
                   $ref: "#/components/schemas/TeamMember"
         "403":
           description: Administrator access required
-  /team/notifications:
-    get:
-      operationId: listTeamAccessNotifications
-      tags: [team]
-      summary: List pending team access request notifications (administrator only)
-      responses:
-        "200":
-          description: Pending access request notifications
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/TeamAccessNotification"
-        "403":
-          description: Administrator access required
   /team/members/{id}:
     patch:
       operationId: updateTeamMember
@@ -924,21 +908,6 @@ components:
           type: string
           format: date-time
         updatedAt:
-          type: string
-          format: date-time
-    TeamAccessNotification:
-      type: object
-      required: [id, requesterId, displayName, email, createdAt]
-      properties:
-        id:
-          type: integer
-        requesterId:
-          type: integer
-        displayName:
-          type: ["string", "null"]
-        email:
-          type: ["string", "null"]
-        createdAt:
           type: string
           format: date-time
     TeamMemberUpdate:

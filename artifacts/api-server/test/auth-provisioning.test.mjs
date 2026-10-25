@@ -1,169 +1,150 @@
 import assert from "node:assert/strict";
-import test from "node:test";
-import { createEnsureLocalUser } from "../src/lib/local-user-provisioning.ts";
-import {
-  requireActiveUser,
-  requireAdministrator,
-} from "../src/middlewares/auth-guards.ts";
+import { after, before, test } from "node:test";
+import { build } from "esbuild";
+import express from "express";
+import { mkdtemp, rm } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-function createMemoryStore() {
-  const users = [];
-  const notifications = [];
-  let nextId = 1;
-  let lockQueue = Promise.resolve();
+const testDir = path.dirname(fileURLToPath(import.meta.url));
+const apiDir = path.resolve(testDir, "..");
+const originalDatabaseUrl = process.env.DATABASE_URL;
+let buildDir;
+let server;
+let baseUrl;
+let member;
+let teamRouter;
+let authGuards;
 
-  const store = {
-    async findByClerkUserId(clerkUserId) {
-      return users.find((user) => user.clerkUserId === clerkUserId);
-    },
-    async updateProfile(id, changes) {
-      const user = users.find((entry) => entry.id === id);
-      assert.ok(user, `expected user ${id} to exist`);
-      Object.assign(user, changes);
-      return user;
-    },
-    async transaction(callback) {
-      let releaseLock;
-      const transaction = {
-        async lockInitialRegistration() {
-          const previousTransaction = lockQueue;
-          lockQueue = new Promise((resolve) => {
-            releaseLock = resolve;
-          });
-          await previousTransaction;
-        },
-        async findByClerkUserId(clerkUserId) {
-          return users.find((user) => user.clerkUserId === clerkUserId);
-        },
-        async countUsers() {
-          return users.length;
-        },
-        async createUser(userData) {
-          const user = {
-            id: nextId++,
-            ...userData,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-          users.push(user);
-          return user;
-        },
-        async createAccessRequestNotification(requesterId) {
-          if (!notifications.some((notification) => notification.requesterId === requesterId)) {
-            notifications.push({ requesterId });
-          }
-        },
-      };
-
-      try {
-        return await callback(transaction);
-      } finally {
-        releaseLock?.();
-      }
-    },
-  };
-
-  return { users, notifications, ensureLocalUser: createEnsureLocalUser(store) };
-}
-
-function runMiddleware(middleware, appUser) {
-  let statusCode;
-  let responseBody;
-  let nextCalls = 0;
-  middleware(
-    { appUser },
-    {
-      status(code) {
-        statusCode = code;
-        return this;
-      },
-      json(body) {
-        responseBody = body;
-        return this;
-      },
-    },
-    () => {
-      nextCalls += 1;
-    },
-  );
-  return { statusCode, responseBody, nextCalls };
-}
-
-test("the first local account is an active administrator", async () => {
-  const { ensureLocalUser } = createMemoryStore();
-  const user = await ensureLocalUser("clerk-first", {
-    displayName: "First User",
-    email: "first@example.test",
-  });
-
-  assert.equal(user.role, "admin");
-  assert.equal(user.status, "active");
-  assert.equal(runMiddleware(requireActiveUser, user).nextCalls, 1);
-  assert.equal(runMiddleware(requireAdministrator, user).nextCalls, 1);
-});
-
-test("later accounts are pending and cannot access active or administrator routes", async () => {
-  const { ensureLocalUser, notifications } = createMemoryStore();
-  await ensureLocalUser("clerk-first", { displayName: null, email: null });
-  const laterUser = await ensureLocalUser("clerk-next", {
-    displayName: "Later User",
-    email: "later@example.test",
-  });
-
-  assert.equal(laterUser.role, "lawyer");
-  assert.equal(laterUser.status, "pending");
-  assert.deepEqual(notifications, [{ requesterId: laterUser.id }]);
-
-  await ensureLocalUser("clerk-next", {
-    displayName: "Later User",
-    email: "later@example.test",
-  });
-  assert.equal(notifications.length, 1, "signing in again must not create another notification");
-
-  const activeAccess = runMiddleware(requireActiveUser, laterUser);
-  assert.equal(activeAccess.statusCode, 403);
-  assert.equal(activeAccess.responseBody.code, "ACCOUNT_PENDING");
-  assert.equal(activeAccess.nextCalls, 0);
-
-  const administratorAccess = runMiddleware(requireAdministrator, laterUser);
-  assert.equal(administratorAccess.statusCode, 403);
-  assert.equal(administratorAccess.responseBody.error, "Administrator access required");
-  assert.equal(administratorAccess.nextCalls, 0);
-});
-
-test("simultaneous first registrations grant administrator status to exactly one account", async () => {
-  const { users, ensureLocalUser } = createMemoryStore();
-  const registrations = await Promise.all(
-    Array.from({ length: 12 }, (_, index) =>
-      ensureLocalUser(`clerk-race-${index}`, {
-        displayName: `User ${index}`,
-        email: `user-${index}@example.test`,
+function makeTestDatabase() {
+  return {
+    transaction: async (operation) =>
+      operation({
+        execute: async () => undefined,
+        select: () => ({
+          from: () => ({
+            where: () => ({
+              for: async () => [member],
+            }),
+          }),
+        }),
+        update: () => ({
+          set: (changes) => ({
+            where: () => ({
+              returning: async () => {
+                Object.assign(member, changes, { updatedAt: new Date() });
+                return [member];
+              },
+            }),
+          }),
+        }),
       }),
-    ),
-  );
+  };
+}
 
-  const administrators = registrations.filter(
-    (user) => user.role === "admin" && user.status === "active",
-  );
-  const pending = registrations.filter(
-    (user) => user.role === "lawyer" && user.status === "pending",
-  );
+before(async () => {
+  process.env.DATABASE_URL ??= "postgresql://test:test@127.0.0.1:1/test";
+  buildDir = await mkdtemp(path.join(apiDir, ".auth-test-build-"));
+  await build({
+    entryPoints: [
+      path.join(apiDir, "src/routes/team.ts"),
+      path.join(apiDir, "src/middlewares/auth.ts"),
+    ],
+    outdir: buildDir,
+    entryNames: "[name]",
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    logLevel: "silent",
+    banner: {
+      js: `import { createRequire as __createRequire } from "node:module";
+globalThis.require = __createRequire(import.meta.url);`,
+    },
+  });
 
-  assert.equal(users.length, 12);
-  assert.equal(administrators.length, 1);
-  assert.equal(pending.length, 11);
+  ({ createTeamRouter: teamRouter } = await import(
+    pathToFileURL(path.join(buildDir, "team.js")).href
+  ));
+  authGuards = await import(pathToFileURL(path.join(buildDir, "auth.js")).href);
+
+  member = {
+    id: 42,
+    clerkUserId: "clerk-lawyer-pending",
+    displayName: "Test Lawyer",
+    email: "lawyer@example.test",
+    role: "lawyer",
+    status: "pending",
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+  };
+  const administrator = {
+    ...member,
+    id: 1,
+    clerkUserId: "clerk-admin",
+    role: "admin",
+    status: "active",
+  };
+  const router = teamRouter(makeTestDatabase());
+  const app = express();
+  app.use(express.json());
+
+  app.use("/admin", (req, _res, next) => {
+    req.appUser = administrator;
+    next();
+  }, router);
+
+  app.use("/lawyer", (req, _res, next) => {
+    req.appUser = member;
+    next();
+  }, authGuards.requireActiveUser);
+  app.get("/lawyer/cases", (_req, res) => res.json({ access: "lawyer" }));
+  app.use("/lawyer", router);
+
+  await new Promise((resolve) => {
+    server = app.listen(0, "127.0.0.1", resolve);
+  });
+  baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
 
-test("simultaneous requests for the same account create only one local user", async () => {
-  const { users, notifications, ensureLocalUser } = createMemoryStore();
-  await ensureLocalUser("clerk-first", { displayName: null, email: null });
-  const registrations = await Promise.all(
-    Array.from({ length: 5 }, () =>
-      ensureLocalUser("clerk-same-user", { displayName: "Same User", email: null }),
-    ),
-  );
+after(async () => {
+  if (server) {
+    await new Promise((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
+  if (buildDir) await rm(buildDir, { recursive: true, force: true });
+  if (originalDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+  else process.env.DATABASE_URL = originalDatabaseUrl;
+});
 
-  assert.equal(users.length, 2);
-  assert.equal(notifications.length, 1);
-  assert.ok(registrations.every((user) => user.id === registrations[0].id));
+test("approval activates a lawyer without granting administrator access", async () => {
+  const pendingResponse = await fetch(`${baseUrl}/lawyer/cases`);
+  assert.equal(pendingResponse.status, 403);
+  assert.deepEqual(await pendingResponse.json(), {
+    error: "Administrator approval required",
+    code: "ACCOUNT_PENDING",
+  });
+
+  const approvalResponse = await fetch(`${baseUrl}/admin/team/members/${member.id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ status: "active" }),
+  });
+  assert.equal(approvalResponse.status, 200);
+  assert.deepEqual(
+    (({ status, role }) => ({ status, role }))(await approvalResponse.json()),
+    { status: "active", role: "lawyer" },
+  );
+  assert.equal(member.status, "active");
+  assert.equal(member.role, "lawyer");
+
+  const lawyerResponse = await fetch(`${baseUrl}/lawyer/cases`);
+  assert.equal(lawyerResponse.status, 200);
+  assert.deepEqual(await lawyerResponse.json(), { access: "lawyer" });
+
+  const adminResponse = await fetch(`${baseUrl}/lawyer/team/members`);
+  assert.equal(adminResponse.status, 403);
+  assert.deepEqual(await adminResponse.json(), {
+    error: "Administrator access required",
+  });
 });

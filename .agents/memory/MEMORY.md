@@ -3,3 +3,4 @@
 - [OpenAPI body schemas](openapi-body-schemas.md) — Orval генерирует runtime-Zod-схемы request body по operationId, а имя общей схемы остаётся типом.
 - [CRM team access](crm-team-access.md) — роли: администратор, юрист и помощник; не-администраторы видят только назначенные дела.
 - [Workspace dependency bootstrap](workspace-dependency-bootstrap.md) — после импорта pnpm-монорепозитория сначала нужен полный frozen install, не только установка зависимостей одного пакета.
+- [API test runtime](api-test-runtime.md) — для Node-тестов API собирайте TypeScript/workspace imports через esbuild и задавайте createRequire для CommonJS-зависимостей.

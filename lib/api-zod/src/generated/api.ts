@@ -104,19 +104,6 @@ export const ListTeamMembersResponse = zod.array(ListTeamMembersResponseItem)
 
 
 /**
- * @summary List pending team access request notifications (administrator only)
- */
-export const ListTeamAccessNotificationsResponseItem = zod.object({
-  "id": zod.number(),
-  "requesterId": zod.number(),
-  "displayName": zod.string().nullable(),
-  "email": zod.string().nullable(),
-  "createdAt": zod.coerce.date()
-})
-export const ListTeamAccessNotificationsResponse = zod.array(ListTeamAccessNotificationsResponseItem)
-
-
-/**
  * @summary Change a team member's role or access (administrator only)
  */
 export const UpdateTeamMemberParams = zod.object({

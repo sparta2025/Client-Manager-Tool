@@ -37,7 +37,6 @@ import type {
   NextStepSuggestion,
   PreliminaryPlan,
   SecretaryReview,
-  TeamAccessNotification,
   TeamMember,
   TeamMemberUpdate
 } from './api.schemas';
@@ -591,83 +590,6 @@ export function useListTeamMembers<TData = Awaited<ReturnType<typeof listTeamMem
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListTeamMembersQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getListTeamAccessNotificationsUrl = () => {
-
-
-
-
-  return `/api/team/notifications`
-}
-
-/**
- * @summary List pending team access request notifications (administrator only)
- */
-export const listTeamAccessNotifications = async ( options?: RequestInit): Promise<TeamAccessNotification[]> => {
-
-  return customFetch<TeamAccessNotification[]>(getListTeamAccessNotificationsUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListTeamAccessNotificationsQueryKey = () => {
-    return [
-    `/api/team/notifications`
-    ] as const;
-    }
-
-
-export const getListTeamAccessNotificationsQueryOptions = <TData = Awaited<ReturnType<typeof listTeamAccessNotifications>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTeamAccessNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListTeamAccessNotificationsQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTeamAccessNotifications>>> = ({ signal }) => listTeamAccessNotifications({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTeamAccessNotifications>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type ListTeamAccessNotificationsQueryResult = NonNullable<Awaited<ReturnType<typeof listTeamAccessNotifications>>>
-export type ListTeamAccessNotificationsQueryError = ErrorType<void>
-
-
-/**
- * @summary List pending team access request notifications (administrator only)
- */
-
-export function useListTeamAccessNotifications<TData = Awaited<ReturnType<typeof listTeamAccessNotifications>>, TError = ErrorType<void>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTeamAccessNotifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getListTeamAccessNotificationsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
