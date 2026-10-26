@@ -75,12 +75,28 @@ export const ListSecretaryRemindersResponse = zod.object({
 
 
 /**
+ * @summary Create a short-lived development-only sign-in link for the demo lawyer
+ */
+export const CreateDemoSignInLinkResponse = zod.object({
+  "email": zod.string(),
+  "url": zod.string(),
+  "expiresInSeconds": zod.literal(60)
+})
+
+
+/**
  * @summary Get the signed-in user's team access
  */
 export const GetCurrentTeamMemberResponse = zod.object({
   "id": zod.number(),
   "displayName": zod.string().nullable(),
   "email": zod.string().nullable(),
+  "jobTitle": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "profileEditedAt": zod.coerce.date().nullable(),
+  "profileEditedBy": zod.union([zod.literal('admin'),zod.literal('user'),zod.literal(null)]).nullable(),
+  "identityEditedAt": zod.coerce.date().nullable(),
+  "identityEditedBy": zod.union([zod.literal('admin'),zod.literal('user'),zod.literal(null)]).nullable(),
   "role": zod.enum(['admin', 'lawyer', 'assistant']),
   "status": zod.enum(['active', 'pending', 'disabled']),
   "createdAt": zod.coerce.date(),
@@ -89,12 +105,18 @@ export const GetCurrentTeamMemberResponse = zod.object({
 
 
 /**
- * @summary List team members (administrator only)
+ * @summary List all members for administrators or the current user's profile
  */
 export const ListTeamMembersResponseItem = zod.object({
   "id": zod.number(),
   "displayName": zod.string().nullable(),
   "email": zod.string().nullable(),
+  "jobTitle": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "profileEditedAt": zod.coerce.date().nullable(),
+  "profileEditedBy": zod.union([zod.literal('admin'),zod.literal('user'),zod.literal(null)]).nullable(),
+  "identityEditedAt": zod.coerce.date().nullable(),
+  "identityEditedBy": zod.union([zod.literal('admin'),zod.literal('user'),zod.literal(null)]).nullable(),
   "role": zod.enum(['admin', 'lawyer', 'assistant']),
   "status": zod.enum(['active', 'pending', 'disabled']),
   "createdAt": zod.coerce.date(),
@@ -104,13 +126,17 @@ export const ListTeamMembersResponse = zod.array(ListTeamMembersResponseItem)
 
 
 /**
- * @summary Change a team member's role or access (administrator only)
+ * @summary Update own profile or manage a team member as an administrator
  */
 export const UpdateTeamMemberParams = zod.object({
   "id": zod.coerce.number()
 })
 
 export const UpdateTeamMemberBody = zod.object({
+  "displayName": zod.string().nullish().describe('CRM display name; does not change the user\'s Clerk sign-in identity'),
+  "email": zod.string().nullish().describe('CRM contact email; does not change the user\'s Clerk sign-in identity'),
+  "jobTitle": zod.string().nullish(),
+  "phone": zod.string().nullish(),
   "role": zod.enum(['admin', 'lawyer', 'assistant']).optional(),
   "status": zod.enum(['active', 'pending', 'disabled']).optional()
 })
@@ -119,6 +145,12 @@ export const UpdateTeamMemberResponse = zod.object({
   "id": zod.number(),
   "displayName": zod.string().nullable(),
   "email": zod.string().nullable(),
+  "jobTitle": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "profileEditedAt": zod.coerce.date().nullable(),
+  "profileEditedBy": zod.union([zod.literal('admin'),zod.literal('user'),zod.literal(null)]).nullable(),
+  "identityEditedAt": zod.coerce.date().nullable(),
+  "identityEditedBy": zod.union([zod.literal('admin'),zod.literal('user'),zod.literal(null)]).nullable(),
   "role": zod.enum(['admin', 'lawyer', 'assistant']),
   "status": zod.enum(['active', 'pending', 'disabled']),
   "createdAt": zod.coerce.date(),
@@ -199,6 +231,7 @@ export const ListClientStagesResponseItem = zod.object({
   "stageDate": zod.coerce.date(),
   "content": zod.string().nullish(),
   "result": zod.string().nullish(),
+  "outcome": zod.enum(['success', 'unsuccessful', 'partial']).nullish(),
   "isCompleted": zod.boolean(),
   "isUrgent": zod.boolean(),
   "failureReasons": zod.string().nullish(),
@@ -227,6 +260,7 @@ export const CreateClientStageBody = zod.object({
   "stageDate": zod.coerce.date(),
   "content": zod.string().nullish(),
   "result": zod.string().nullish(),
+  "outcome": zod.enum(['success', 'unsuccessful', 'partial']).nullish(),
   "isCompleted": zod.boolean().optional(),
   "isUrgent": zod.boolean().optional(),
   "failureReasons": zod.string().nullish(),
@@ -243,6 +277,7 @@ export const CreateClientStageResponse = zod.object({
   "stageDate": zod.coerce.date(),
   "content": zod.string().nullish(),
   "result": zod.string().nullish(),
+  "outcome": zod.enum(['success', 'unsuccessful', 'partial']).nullish(),
   "isCompleted": zod.boolean(),
   "isUrgent": zod.boolean(),
   "failureReasons": zod.string().nullish(),
@@ -267,6 +302,9 @@ export const GetClientStatsResponse = zod.object({
   "totalStages": zod.number(),
   "completedStages": zod.number(),
   "activeStages": zod.number(),
+  "successfulStages": zod.number(),
+  "unsuccessfulStages": zod.number(),
+  "partialStages": zod.number(),
   "lastStageDate": zod.coerce.date().nullish(),
   "lastNextPlans": zod.string().nullish()
 })
@@ -287,6 +325,7 @@ export const UpdateStageBody = zod.object({
   "stageDate": zod.coerce.date().optional(),
   "content": zod.string().nullish(),
   "result": zod.string().nullish(),
+  "outcome": zod.enum(['success', 'unsuccessful', 'partial']).nullish(),
   "isCompleted": zod.boolean().optional(),
   "isUrgent": zod.boolean().optional(),
   "failureReasons": zod.string().nullish(),
@@ -303,6 +342,7 @@ export const UpdateStageResponse = zod.object({
   "stageDate": zod.coerce.date(),
   "content": zod.string().nullish(),
   "result": zod.string().nullish(),
+  "outcome": zod.enum(['success', 'unsuccessful', 'partial']).nullish(),
   "isCompleted": zod.boolean(),
   "isUrgent": zod.boolean(),
   "failureReasons": zod.string().nullish(),
@@ -344,6 +384,8 @@ export const UpdateClientBody = zod.object({
   "createdAt": zod.coerce.date().optional(),
   "closedAt": zod.coerce.date().nullish(),
   "closingSummary": zod.string().min(1).optional().describe('Required when changing the client status to closed'),
+  "closingRecommendations": zod.string().optional().describe('Optional recommendations saved in the final journal entry'),
+  "closingOutcome": zod.enum(['success', 'unsuccessful', 'partial']).optional(),
   "assignedToUserId": zod.number().nullish()
 })
 

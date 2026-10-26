@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { BookOpen, BriefcaseBusiness, CircleUserRound, LogOut, UsersRound } from "lucide-react";
 import { Link, Redirect, Route, Router as WouterRouter, Switch, useLocation } from "wouter";
 import { Toaster } from "sonner";
-import { useGetCurrentTeamMember, getGetCurrentTeamMemberQueryKey } from "@workspace/api-client-react";
+import { useCreateDemoSignInLink, useGetCurrentTeamMember, getGetCurrentTeamMemberQueryKey } from "@workspace/api-client-react";
 import Dashboard from "@/pages/dashboard";
 import ClientDetailPage from "@/pages/client-detail";
 import DocumentationPage from "@/pages/documentation";
@@ -119,7 +119,7 @@ function Home() {
             src={`${basePath}/lady-justice.png`}
             alt="Богиня правосудия с повязкой на глазах, весами и мечом"
             data-testid="img-lady-justice"
-            className="pointer-events-none absolute right-2 top-2 z-0 h-36 w-36 object-contain opacity-90 sm:right-5 sm:top-4 sm:h-44 sm:w-44 lg:right-6 lg:top-5 lg:h-56 lg:w-56"
+            className="pointer-events-none absolute right-3 top-3 z-0 h-24 w-24 object-contain opacity-35 sm:right-5 sm:top-5 sm:h-32 sm:w-32 lg:right-8 lg:top-8 lg:h-40 lg:w-40"
           />
           <div className="relative z-10 flex items-center gap-3">
             <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/20 bg-white/10"><BriefcaseBusiness className="h-6 w-6" /></span>
@@ -188,7 +188,7 @@ function AppShell({ children }: { children: ReactNode }) {
         <nav className="flex items-center gap-1" aria-label="Основная навигация">
           <Button variant="ghost" size="sm" onClick={() => setLocation("/dashboard")}><BriefcaseBusiness className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Дела</span></Button>
           <Button variant="ghost" size="sm" onClick={() => setLocation("/documentation")}><BookOpen className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Справочник</span></Button>
-          {isAdmin && <Button variant="ghost" size="sm" onClick={() => setLocation("/team")}><UsersRound className="mr-2 h-4 w-4" /><span className="hidden sm:inline">Команда</span></Button>}
+          <Button variant="ghost" size="sm" onClick={() => setLocation("/team")}><UsersRound className="mr-2 h-4 w-4" /><span className="hidden sm:inline">{isAdmin ? "Команда" : "Профиль"}</span></Button>
         </nav>
         <div className="flex items-center gap-2">
           <div className="hidden text-right sm:block"><p className="max-w-40 truncate text-xs font-semibold text-primary">{name}</p><p className="text-[10px] text-muted-foreground">{member.role === "admin" ? "Администратор" : member.role === "lawyer" ? "Юрист" : "Ассистент"}</p></div>
@@ -201,7 +201,13 @@ function AppShell({ children }: { children: ReactNode }) {
 }
 
 function SignInPage() {
-  return <main className="flex min-h-[100dvh] items-center justify-center bg-background px-4 py-10"><div className="w-full max-w-5xl overflow-hidden rounded-[2rem] border bg-card shadow-xl md:grid md:grid-cols-[.8fr_1.2fr]"><section className="hidden flex-col justify-between bg-primary p-10 text-primary-foreground md:flex"><BriefcaseBusiness className="h-8 w-8" /><div><p className="text-xs uppercase tracking-[.2em] text-white/65">Практика · защищённый доступ</p><h1 className="mt-4 font-serif text-4xl leading-tight">Дела команды<br /><em>под контролем.</em></h1></div><p className="text-sm text-white/60">Клиентские данные доступны только активным участникам.</p></section><div className="flex justify-center p-5 sm:p-10"><SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} /></div></div></main>;
+  const demoLink = useCreateDemoSignInLink();
+  const requestDemoLink = () => demoLink.mutate(undefined, {
+    onSuccess: (result) => {
+      window.location.assign(result.url);
+    },
+  });
+  return <main className="flex min-h-[100dvh] items-center justify-center bg-background px-4 py-10"><div className="w-full max-w-5xl overflow-hidden rounded-[2rem] border bg-card shadow-xl md:grid md:grid-cols-[.8fr_1.2fr]"><section className="hidden flex-col justify-between bg-primary p-10 text-primary-foreground md:flex"><BriefcaseBusiness className="h-8 w-8" /><div><p className="text-xs uppercase tracking-[.2em] text-white/65">Практика · защищённый доступ</p><h1 className="mt-4 font-serif text-4xl leading-tight">Дела команды<br /><em>под контролем.</em></h1></div><p className="text-sm text-white/60">Клиентские данные доступны только активным участникам.</p></section><div className="flex flex-col items-center gap-5 p-5 sm:p-10"><SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />{import.meta.env.DEV && <aside className="w-full max-w-[440px] rounded-xl border border-border bg-muted/40 p-4" data-testid="panel-demo-sign-in"><p className="text-xs font-semibold uppercase tracking-[.12em] text-muted-foreground">Для разработки</p><p className="mt-2 text-sm text-foreground">Демо-вход: <span className="font-medium">demo.lawyer@example.com</span></p><Button type="button" variant="outline" className="mt-3 w-full" onClick={requestDemoLink} disabled={demoLink.isPending} data-testid="button-demo-sign-in">{demoLink.isPending ? "Готовим ссылку…" : "Войти по одноразовой ссылке"}</Button>{demoLink.isError && <p className="mt-2 text-sm text-destructive" role="alert">Не удалось создать ссылку. Попробуйте ещё раз.</p>}</aside>}</div></div></main>;
 }
 
 function SignUpPage() {
@@ -216,7 +222,7 @@ function Router() {
     <Route path="/dashboard">{() => <Protected><Dashboard /></Protected>}</Route>
     <Route path="/clients/:id">{() => <Protected><ClientDetailPage /></Protected>}</Route>
     <Route path="/documentation">{() => <Protected><DocumentationPage /></Protected>}</Route>
-    <Route path="/team">{() => <Protected adminOnly><TeamPage /></Protected>}</Route>
+    <Route path="/team">{() => <Protected><TeamPage /></Protected>}</Route>
     <Route component={() => <main className="grid min-h-[100dvh] place-items-center bg-background p-6"><div className="text-center"><p className="font-serif text-6xl text-primary">404</p><h1 className="mt-3 font-serif text-2xl text-primary">Страница не найдена</h1><p className="mt-2 text-sm text-muted-foreground">Проверьте адрес или вернитесь к делам.</p><Button className="mt-6" asChild><Link href="/">На главную</Link></Button></div></main>} />
   </Switch>;
 }

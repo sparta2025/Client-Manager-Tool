@@ -66,6 +66,15 @@ export interface ClientInput {
   assignedToUserId?: number | null;
 }
 
+export type StageOutcome = typeof StageOutcome[keyof typeof StageOutcome];
+
+
+export const StageOutcome = {
+  success: 'success',
+  unsuccessful: 'unsuccessful',
+  partial: 'partial',
+} as const;
+
 export interface ClientUpdate {
   /** @minLength 1 */
   name?: string;
@@ -79,6 +88,9 @@ export interface ClientUpdate {
      * @minLength 1
      */
   closingSummary?: string;
+  /** Optional recommendations saved in the final journal entry */
+  closingRecommendations?: string;
+  closingOutcome?: StageOutcome;
   /** @nullable */
   assignedToUserId?: number | null;
 }
@@ -90,6 +102,7 @@ export interface CaseStage {
   stageDate: string;
   content?: string | null;
   result?: string | null;
+  outcome?: StageOutcome | null;
   isCompleted: boolean;
   isUrgent: boolean;
   failureReasons?: string | null;
@@ -109,6 +122,7 @@ export interface CaseStageInput {
   stageDate: string;
   content?: string | null;
   result?: string | null;
+  outcome?: StageOutcome | null;
   isCompleted?: boolean;
   isUrgent?: boolean;
   failureReasons?: string | null;
@@ -124,6 +138,7 @@ export interface CaseStageUpdate {
   stageDate?: string;
   content?: string | null;
   result?: string | null;
+  outcome?: StageOutcome | null;
   isCompleted?: boolean;
   isUrgent?: boolean;
   failureReasons?: string | null;
@@ -138,6 +153,9 @@ export interface ClientStats {
   totalStages: number;
   completedStages: number;
   activeStages: number;
+  successfulStages: number;
+  unsuccessfulStages: number;
+  partialStages: number;
   lastStageDate?: string | null;
   lastNextPlans?: string | null;
 }
@@ -283,12 +301,46 @@ export const TeamMemberStatus = {
   disabled: 'disabled',
 } as const;
 
+/**
+ * @nullable
+ */
+export type TeamMemberProfileEditedBy = typeof TeamMemberProfileEditedBy[keyof typeof TeamMemberProfileEditedBy] | null;
+
+
+export const TeamMemberProfileEditedBy = {
+  admin: 'admin',
+  user: 'user',
+} as const;
+
+/**
+ * @nullable
+ */
+export type TeamMemberIdentityEditedBy = typeof TeamMemberIdentityEditedBy[keyof typeof TeamMemberIdentityEditedBy] | null;
+
+
+export const TeamMemberIdentityEditedBy = {
+  admin: 'admin',
+  user: 'user',
+} as const;
+
 export interface TeamMember {
   id: number;
   /** @nullable */
   displayName: string | null;
   /** @nullable */
   email: string | null;
+  /** @nullable */
+  jobTitle: string | null;
+  /** @nullable */
+  phone: string | null;
+  /** @nullable */
+  profileEditedAt: string | null;
+  /** @nullable */
+  profileEditedBy: TeamMemberProfileEditedBy;
+  /** @nullable */
+  identityEditedAt: string | null;
+  /** @nullable */
+  identityEditedBy: TeamMemberIdentityEditedBy;
   role: TeamRole;
   status: TeamMemberStatus;
   createdAt: string;
@@ -296,7 +348,34 @@ export interface TeamMember {
 }
 
 export interface TeamMemberUpdate {
+  /**
+     * CRM display name; does not change the user's Clerk sign-in identity
+     * @nullable
+     */
+  displayName?: string | null;
+  /**
+     * CRM contact email; does not change the user's Clerk sign-in identity
+     * @nullable
+     */
+  email?: string | null;
+  /** @nullable */
+  jobTitle?: string | null;
+  /** @nullable */
+  phone?: string | null;
   role?: TeamRole;
   status?: TeamMemberStatus;
+}
+
+export type DemoSignInLinkResponseExpiresInSeconds = typeof DemoSignInLinkResponseExpiresInSeconds[keyof typeof DemoSignInLinkResponseExpiresInSeconds];
+
+
+export const DemoSignInLinkResponseExpiresInSeconds = {
+  NUMBER_60: 60,
+} as const;
+
+export interface DemoSignInLinkResponse {
+  email: string;
+  url: string;
+  expiresInSeconds: DemoSignInLinkResponseExpiresInSeconds;
 }
 

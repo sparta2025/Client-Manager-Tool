@@ -91,6 +91,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentSecretaryRemindersResponse"
+  /auth/demo-sign-in:
+    post:
+      operationId: createDemoSignInLink
+      tags: [auth]
+      summary: Create a short-lived development-only sign-in link for the demo lawyer
+      responses:
+        "200":
+          description: Single-use Clerk sign-in URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DemoSignInLinkResponse"
+        "404":
+          description: Demo sign-in is unavailable outside a configured development environment
   /team/me:
     get:
       operationId: getCurrentTeamMember
@@ -109,7 +123,7 @@ paths:
     get:
       operationId: listTeamMembers
       tags: [team]
-      summary: List team members (administrator only)
+      summary: List all members for administrators or the current user's profile
       responses:
         "200":
           description: Team members
@@ -120,12 +134,12 @@ paths:
                 items:
                   $ref: "#/components/schemas/TeamMember"
         "403":
-          description: Administrator access required
+          description: Active team access required
   /team/members/{id}:
     patch:
       operationId: updateTeamMember
       tags: [team]
-      summary: Change a team member's role or access (administrator only)
+      summary: Update own profile or manage a team member as an administrator
       parameters:
         - name: id
           in: path
@@ -243,6 +257,8 @@ paths:
                 $ref: "#/components/schemas/CaseStage"
         "404":
           description: Client not found
+        "409":
+          description: Closed case journal is read-only
   /clients/{clientId}/stats:
     get:
       operationId: getClientStats
@@ -289,6 +305,8 @@ paths:
                 $ref: "#/components/schemas/CaseStage"
         "404":
           description: Stage not found
+        "409":
+          description: Closed case journal is read-only
     delete:
       operationId: deleteStage
       tags: [stages]
@@ -304,6 +322,10 @@ paths:
           description: Deleted
         "404":
           description: Stage not found
+        "403":
+          description: Assistant access cannot delete case history
+        "409":
+          description: Closed case journal is read-only
   /clients/{id}:
     patch:
       operationId: updateClient
@@ -557,8 +579,16 @@ components:
           type: string
           minLength: 1
           description: Required when changing the client status to closed
+        closingRecommendations:
+          type: string
+          description: Optional recommendations saved in the final journal entry
+        closingOutcome:
+          $ref: "#/components/schemas/StageOutcome"
         assignedToUserId:
           type: ["integer", "null"]
+    StageOutcome:
+      type: string
+      enum: [success, unsuccessful, partial]
     CaseStage:
       type: object
       required: [id, clientId, name, stageDate, isCompleted, isUrgent, createdAt, updatedAt]
@@ -577,6 +607,10 @@ components:
           nullable: true
         result:
           type: string
+          nullable: true
+        outcome:
+          allOf:
+            - $ref: "#/components/schemas/StageOutcome"
           nullable: true
         isCompleted:
           type: boolean
@@ -624,6 +658,10 @@ components:
         result:
           type: string
           nullable: true
+        outcome:
+          allOf:
+            - $ref: "#/components/schemas/StageOutcome"
+          nullable: true
         isCompleted:
           type: boolean
         isUrgent:
@@ -661,6 +699,10 @@ components:
         result:
           type: string
           nullable: true
+        outcome:
+          allOf:
+            - $ref: "#/components/schemas/StageOutcome"
+          nullable: true
         isCompleted:
           type: boolean
         isUrgent:
@@ -685,7 +727,7 @@ components:
           nullable: true
     ClientStats:
       type: object
-      required: [clientId, totalStages, completedStages, activeStages]
+      required: [clientId, totalStages, completedStages, activeStages, successfulStages, unsuccessfulStages, partialStages]
       properties:
         clientId:
           type: integer
@@ -694,6 +736,12 @@ components:
         completedStages:
           type: integer
         activeStages:
+          type: integer
+        successfulStages:
+          type: integer
+        unsuccessfulStages:
+          type: integer
+        partialStages:
           type: integer
         lastStageDate:
           type: string
@@ -892,7 +940,7 @@ components:
       enum: [active, pending, disabled]
     TeamMember:
       type: object
-      required: [id, displayName, email, role, status, createdAt, updatedAt]
+      required: [id, displayName, email, jobTitle, phone, profileEditedAt, profileEditedBy, identityEditedAt, identityEditedBy, role, status, createdAt, updatedAt]
       properties:
         id:
           type: integer
@@ -900,6 +948,22 @@ components:
           type: ["string", "null"]
         email:
           type: ["string", "null"]
+        jobTitle:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        profileEditedAt:
+          type: ["string", "null"]
+          format: date-time
+        profileEditedBy:
+          type: ["string", "null"]
+          enum: [admin, user, null]
+        identityEditedAt:
+          type: ["string", "null"]
+          format: date-time
+        identityEditedBy:
+          type: ["string", "null"]
+          enum: [admin, user, null]
         role:
           $ref: "#/components/schemas/TeamRole"
         status:
@@ -913,8 +977,29 @@ components:
     TeamMemberUpdate:
       type: object
       properties:
+        displayName:
+          type: ["string", "null"]
+          description: CRM display name; does not change the user's Clerk sign-in identity
+        email:
+          type: ["string", "null"]
+          description: CRM contact email; does not change the user's Clerk sign-in identity
+        jobTitle:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
         role:
           $ref: "#/components/schemas/TeamRole"
         status:
           $ref: "#/components/schemas/TeamMemberStatus"
+    DemoSignInLinkResponse:
+      type: object
+      required: [email, url, expiresInSeconds]
+      properties:
+        email:
+          type: string
+        url:
+          type: string
+        expiresInSeconds:
+          type: integer
+          enum: [60]
 

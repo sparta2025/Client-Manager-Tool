@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { StageOutcome } from './stageOutcome';
 
 export interface CaseStageUpdate {
   /** @minLength 1 */
@@ -12,6 +13,7 @@ export interface CaseStageUpdate {
   stageDate?: Date;
   content?: string | null;
   result?: string | null;
+  outcome?: StageOutcome | null;
   isCompleted?: boolean;
   isUrgent?: boolean;
   failureReasons?: string | null;

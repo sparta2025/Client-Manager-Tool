@@ -352,21 +352,27 @@ function CloseClientDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [closingSummary, setClosingSummary] = useState("");
+  const [closingOutcome, setClosingOutcome] = useState<"success" | "unsuccessful" | "partial" | "">("");
+  const [closingRecommendations, setClosingRecommendations] = useState("");
   const queryClient = useQueryClient();
   const updateClient = useUpdateClient();
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!client) return;
-    const finalResult = closingSummary.trim();
-    if (!finalResult) {
+    if (!closingSummary.trim()) {
       toast.error("Укажите итоговый результат перед закрытием дела");
       return;
     }
 
     updateClient.mutate({
       id: client.id,
-      data: { status: "closed", closingSummary: finalResult },
+      data: {
+        status: "closed",
+        closingSummary,
+        ...(closingOutcome ? { closingOutcome } : {}),
+        ...(closingRecommendations.trim() ? { closingRecommendations } : {}),
+      },
     }, {
       onSuccess: async () => {
         await Promise.all([
@@ -375,6 +381,8 @@ function CloseClientDialog({
         ]);
         toast.success("Итог дела сохранён, дело закрыто");
         setClosingSummary("");
+        setClosingOutcome("");
+        setClosingRecommendations("");
         onOpenChange(false);
       },
       onError: () => toast.error("Не удалось закрыть дело"),
@@ -385,7 +393,11 @@ function CloseClientDialog({
     <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
-        if (!nextOpen) setClosingSummary("");
+        if (!nextOpen) {
+          setClosingSummary("");
+          setClosingOutcome("");
+          setClosingRecommendations("");
+        }
         onOpenChange(nextOpen);
       }}
     >
@@ -408,6 +420,30 @@ function CloseClientDialog({
               className="min-h-[140px]"
               maxLength={5000}
               required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="closing-outcome">Исход дела <span className="font-normal text-muted-foreground">(необязательно)</span></Label>
+            <Select value={closingOutcome || "not-set"} onValueChange={(value) => setClosingOutcome(value === "not-set" ? "" : value as "success" | "unsuccessful" | "partial")}>
+              <SelectTrigger id="closing-outcome" data-testid="select-closing-outcome"><SelectValue placeholder="Не указывать" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="not-set">Не указывать</SelectItem>
+                <SelectItem value="success">Успешный</SelectItem>
+                <SelectItem value="unsuccessful">Неуспешный</SelectItem>
+                <SelectItem value="partial">Частичный</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="closing-recommendations">Рекомендации <span className="font-normal text-muted-foreground">(необязательно)</span></Label>
+            <Textarea
+              id="closing-recommendations"
+              data-testid="input-closing-recommendations"
+              value={closingRecommendations}
+              onChange={(event) => setClosingRecommendations(event.target.value)}
+              placeholder="Что стоит учесть в похожих делах или при дальнейшей работе с клиентом?"
+              className="min-h-[90px]"
+              maxLength={5000}
             />
           </div>
           <div className="flex justify-end gap-2">

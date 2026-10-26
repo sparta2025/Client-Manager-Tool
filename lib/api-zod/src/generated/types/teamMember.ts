@@ -5,6 +5,8 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { TeamMemberIdentityEditedBy } from './teamMemberIdentityEditedBy';
+import type { TeamMemberProfileEditedBy } from './teamMemberProfileEditedBy';
 import type { TeamMemberStatus } from './teamMemberStatus';
 import type { TeamRole } from './teamRole';
 
@@ -14,6 +16,18 @@ export interface TeamMember {
   displayName: string | null;
   /** @nullable */
   email: string | null;
+  /** @nullable */
+  jobTitle: string | null;
+  /** @nullable */
+  phone: string | null;
+  /** @nullable */
+  profileEditedAt: Date | null;
+  /** @nullable */
+  profileEditedBy: TeamMemberProfileEditedBy;
+  /** @nullable */
+  identityEditedAt: Date | null;
+  /** @nullable */
+  identityEditedBy: TeamMemberIdentityEditedBy;
   role: TeamRole;
   status: TeamMemberStatus;
   createdAt: Date;

@@ -354,7 +354,7 @@ export default function ClientDetailPage() {
         )}
 
         {/* Stats Section */}
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-in fade-in zoom-in-95 duration-700 delay-100 fill-mode-both">
+        <section className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-6 gap-4 animate-in fade-in zoom-in-95 duration-700 delay-100 fill-mode-both">
           <SummaryCard 
             title="Всего этапов" 
             value={stats?.totalStages} 
@@ -372,6 +372,24 @@ export default function ClientDetailPage() {
             value={stats?.completedStages} 
             loading={!stats} 
             icon={<CheckCircle2 className="h-4 w-4 text-[#15803d]" />} 
+          />
+          <SummaryCard
+            title="Успешно"
+            value={stats?.successfulStages}
+            loading={!stats}
+            icon={<CheckCircle2 className="h-4 w-4 text-[#15803d]" />}
+          />
+          <SummaryCard
+            title="Неуспешно"
+            value={stats?.unsuccessfulStages}
+            loading={!stats}
+            icon={<AlertTriangle className="h-4 w-4 text-destructive" />}
+          />
+          <SummaryCard
+            title="Частичный результат"
+            value={stats?.partialStages}
+            loading={!stats}
+            icon={<Target className="h-4 w-4 text-amber-700" />}
           />
         </section>
 
@@ -464,6 +482,18 @@ export default function ClientDetailPage() {
                 const controlDateIsOverdue = Boolean(
                   stage.controlDate && !stage.isCompleted && new Date(stage.controlDate).getTime() < Date.now(),
                 );
+                const stageIsPlanned =
+                  !stage.isCompleted && new Date(stage.stageDate).getTime() > Date.now();
+                const stageStatus = stage.isCompleted
+                  ? "Завершён"
+                  : stageIsPlanned
+                    ? "Запланирован"
+                    : "В работе";
+                const outcomeLabel = {
+                  success: "Успешно",
+                  unsuccessful: "Неуспешно",
+                  partial: "Частичный результат",
+                } as const;
                 return (
                 <Card 
                   key={stage.id} 
@@ -485,19 +515,33 @@ export default function ClientDetailPage() {
                             <Clock className="w-3.5 h-3.5" />
                             {format(new Date(stage.stageDate), "d MMMM yyyy, HH:mm", { locale: ru })}
                           </span>
-                          {stage.controlDate && (
-                            <span className={`flex items-center gap-1.5 ${controlDateIsOverdue ? "text-destructive font-medium" : ""}`}>
+                          <span className={`flex items-center gap-1.5 ${controlDateIsOverdue ? "text-destructive font-medium" : ""}`}>
                               <CalendarClock className="w-3.5 h-3.5" />
-                              Контроль: {format(new Date(stage.controlDate), "d MMMM yyyy, HH:mm", { locale: ru })}
-                            </span>
-                          )}
+                              Контроль: {stage.controlDate
+                                ? format(new Date(stage.controlDate), "d MMMM yyyy, HH:mm", { locale: ru })
+                                : "не задан"}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <CalendarCheck className="w-3.5 h-3.5" />
+                            Следующий контроль: {stage.nextControlDate
+                              ? format(new Date(stage.nextControlDate), "d MMMM yyyy, HH:mm", { locale: ru })
+                              : "не задан"}
+                          </span>
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-3">
                         <div className="flex flex-wrap justify-end items-center gap-2">
-                          <Badge variant={stage.isCompleted ? "closed" : "in_progress"} className="shadow-sm">
-                            {stage.isCompleted ? "Завершён" : "В работе"}
+                          <Badge variant={stage.isCompleted ? "closed" : stageIsPlanned ? "outline" : "in_progress"} className="shadow-sm">
+                            {stageStatus}
                           </Badge>
+                          {stage.outcome && (
+                            <Badge
+                              variant={stage.outcome === "success" ? "closed" : stage.outcome === "unsuccessful" ? "destructive" : "secondary"}
+                              className="shadow-sm"
+                            >
+                              {outcomeLabel[stage.outcome]}
+                            </Badge>
+                          )}
                           {stage.isUrgent && (
                             <Badge variant="destructive" className="font-bold shadow-sm">
                               Срочно
@@ -560,15 +604,6 @@ export default function ClientDetailPage() {
                               Следующие цели
                             </div>
                             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{stage.nextPlans}</p>
-                          </div>
-                        )}
-                        {stage.nextControlDate && (
-                          <div className="flex items-center gap-1.5 text-sm text-primary/80">
-                            <CalendarCheck className="w-4 h-4 text-[#0369a1]" />
-                            <span>
-                              Контроль следующего шага:{" "}
-                              {format(new Date(stage.nextControlDate), "d MMMM yyyy, HH:mm", { locale: ru })}
-                            </span>
                           </div>
                         )}
                         {!stage.isCompleted && stage.failureReasons && (
@@ -747,6 +782,9 @@ function StageModal({
   const [content, setContent] = useState(stage?.content || "");
   const [result, setResult] = useState(stage?.result || "");
   const [isCompleted, setIsCompleted] = useState(stage?.isCompleted || false);
+  const [outcome, setOutcome] = useState<"success" | "unsuccessful" | "partial" | "">(
+    stage?.outcome ?? "",
+  );
   const [isUrgent, setIsUrgent] = useState(stage?.isUrgent || false);
   const [failureReasons, setFailureReasons] = useState(stage?.failureReasons || "");
   const [nextPlans, setNextPlans] = useState(stage?.nextPlans || "");
@@ -765,6 +803,7 @@ function StageModal({
       setContent(stage.content || "");
       setResult(stage.result || "");
       setIsCompleted(stage.isCompleted);
+      setOutcome(stage.outcome ?? "");
       setIsUrgent(stage.isUrgent);
       setFailureReasons(stage.failureReasons || "");
       setNextPlans(stage.nextPlans || "");
@@ -777,6 +816,7 @@ function StageModal({
       setContent("");
       setResult("");
       setIsCompleted(false);
+      setOutcome("");
       setIsUrgent(false);
       setFailureReasons("");
       setNextPlans("");
@@ -800,6 +840,7 @@ function StageModal({
       content: content.trim() || null,
       result: result.trim() || null,
       isCompleted,
+      outcome: isCompleted && outcome ? outcome : null,
       isUrgent,
       failureReasons: failureReasons.trim() || null,
       nextPlans: nextPlans.trim() || null,
@@ -977,9 +1018,27 @@ function StageModal({
             </div>
           </div>
 
-          {!isCompleted && (
+          {isCompleted && (
+            <div className="space-y-2">
+              <Label htmlFor="stage-outcome" className="text-primary font-medium">Исход этапа</Label>
+              <select
+                id="stage-outcome"
+                value={outcome}
+                onChange={(event) => setOutcome(event.target.value as typeof outcome)}
+                className="h-11 w-full rounded-md border border-input bg-muted/30 px-3 text-sm focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Не указан</option>
+                <option value="success">Успешно</option>
+                <option value="unsuccessful">Неуспешно</option>
+                <option value="partial">Частичный результат</option>
+              </select>
+              <p className="text-xs text-muted-foreground">Исход используется в статистике дела.</p>
+            </div>
+          )}
+
+          {(!isCompleted || outcome === "unsuccessful") && (
             <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-              <Label htmlFor="stage-failures" className="text-destructive font-medium">Причины неудачи (если применимо)</Label>
+              <Label htmlFor="stage-failures" className="text-destructive font-medium">Причины неудачи / трудности</Label>
               <Textarea
                 id="stage-failures"
                 placeholder="Опишите проблемы или причины задержки..."

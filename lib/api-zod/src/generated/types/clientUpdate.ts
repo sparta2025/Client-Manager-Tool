@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ClientStatus } from './clientStatus';
+import type { StageOutcome } from './stageOutcome';
 
 export interface ClientUpdate {
   /** @minLength 1 */
@@ -20,6 +21,9 @@ export interface ClientUpdate {
      * @minLength 1
      */
   closingSummary?: string;
+  /** Optional recommendations saved in the final journal entry */
+  closingRecommendations?: string;
+  closingOutcome?: StageOutcome;
   /** @nullable */
   assignedToUserId?: number | null;
 }

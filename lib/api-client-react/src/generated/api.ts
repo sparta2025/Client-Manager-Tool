@@ -33,6 +33,7 @@ import type {
   ClientStats,
   ClientUpdate,
   ClientsSummary,
+  DemoSignInLinkResponse,
   HealthStatus,
   NextStepSuggestion,
   PreliminaryPlan,
@@ -448,6 +449,77 @@ export function useListSecretaryReminders<TData = Awaited<ReturnType<typeof list
 
 
 
+export const getCreateDemoSignInLinkUrl = () => {
+
+
+
+
+  return `/api/auth/demo-sign-in`
+}
+
+/**
+ * @summary Create a short-lived development-only sign-in link for the demo lawyer
+ */
+export const createDemoSignInLink = async ( options?: RequestInit): Promise<DemoSignInLinkResponse> => {
+
+  return customFetch<DemoSignInLinkResponse>(getCreateDemoSignInLinkUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreateDemoSignInLinkMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDemoSignInLink>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createDemoSignInLink>>, TError,void, TContext> => {
+
+const mutationKey = ['createDemoSignInLink'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDemoSignInLink>>, void> = () => {
+
+
+          return  createDemoSignInLink(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateDemoSignInLinkMutationResult = NonNullable<Awaited<ReturnType<typeof createDemoSignInLink>>>
+
+    export type CreateDemoSignInLinkMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a short-lived development-only sign-in link for the demo lawyer
+ */
+export const useCreateDemoSignInLink = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDemoSignInLink>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createDemoSignInLink>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCreateDemoSignInLinkMutationOptions(options));
+    }
+
 export const getGetCurrentTeamMemberUrl = () => {
 
 
@@ -534,7 +606,7 @@ export const getListTeamMembersUrl = () => {
 }
 
 /**
- * @summary List team members (administrator only)
+ * @summary List all members for administrators or the current user's profile
  */
 export const listTeamMembers = async ( options?: RequestInit): Promise<TeamMember[]> => {
 
@@ -581,7 +653,7 @@ export type ListTeamMembersQueryError = ErrorType<void>
 
 
 /**
- * @summary List team members (administrator only)
+ * @summary List all members for administrators or the current user's profile
  */
 
 export function useListTeamMembers<TData = Awaited<ReturnType<typeof listTeamMembers>>, TError = ErrorType<void>>(
@@ -611,7 +683,7 @@ export const getUpdateTeamMemberUrl = (id: number,) => {
 }
 
 /**
- * @summary Change a team member's role or access (administrator only)
+ * @summary Update own profile or manage a team member as an administrator
  */
 export const updateTeamMember = async (id: number,
     teamMemberUpdate: TeamMemberUpdate, options?: RequestInit): Promise<TeamMember> => {
@@ -661,7 +733,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateTeamMemberMutationError = ErrorType<void>
 
     /**
- * @summary Change a team member's role or access (administrator only)
+ * @summary Update own profile or manage a team member as an administrator
  */
 export const useUpdateTeamMember = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTeamMember>>, TError,{id: number;data: BodyType<TeamMemberUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}

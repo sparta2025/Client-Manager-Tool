@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { StageOutcome } from './stageOutcome';
 
 export interface CaseStage {
   id: number;
@@ -13,6 +14,7 @@ export interface CaseStage {
   stageDate: Date;
   content?: string | null;
   result?: string | null;
+  outcome?: StageOutcome | null;
   isCompleted: boolean;
   isUrgent: boolean;
   failureReasons?: string | null;

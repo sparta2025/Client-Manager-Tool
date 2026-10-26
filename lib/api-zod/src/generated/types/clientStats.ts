@@ -11,6 +11,9 @@ export interface ClientStats {
   totalStages: number;
   completedStages: number;
   activeStages: number;
+  successfulStages: number;
+  unsuccessfulStages: number;
+  partialStages: number;
   lastStageDate?: Date | null;
   lastNextPlans?: string | null;
 }

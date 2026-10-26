@@ -1,6 +1,8 @@
 import { pgTable, text, serial, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import { clientsTable } from "./clients";
 
+export type StageOutcome = "success" | "unsuccessful" | "partial";
+
 export const caseStagesTable = pgTable("case_stages", {
   id: serial("id").primaryKey(),
   clientId: integer("client_id")
@@ -10,6 +12,7 @@ export const caseStagesTable = pgTable("case_stages", {
   stageDate: timestamp("stage_date", { withTimezone: true }).notNull().defaultNow(),
   content: text("content"),
   result: text("result"),
+  outcome: text("outcome").$type<StageOutcome>(),
   isCompleted: boolean("is_completed").notNull().default(false),
   isUrgent: boolean("is_urgent").notNull().default(false),
   failureReasons: text("failure_reasons"),

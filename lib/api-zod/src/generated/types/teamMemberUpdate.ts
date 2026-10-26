@@ -9,6 +9,20 @@ import type { TeamMemberStatus } from './teamMemberStatus';
 import type { TeamRole } from './teamRole';
 
 export interface TeamMemberUpdate {
+  /**
+     * CRM display name; does not change the user's Clerk sign-in identity
+     * @nullable
+     */
+  displayName?: string | null;
+  /**
+     * CRM contact email; does not change the user's Clerk sign-in identity
+     * @nullable
+     */
+  email?: string | null;
+  /** @nullable */
+  jobTitle?: string | null;
+  /** @nullable */
+  phone?: string | null;
   role?: TeamRole;
   status?: TeamMemberStatus;
 }

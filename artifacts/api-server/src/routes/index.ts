@@ -5,12 +5,14 @@ import stagesRouter from "./stages";
 import aiRouter from "./ai";
 import agentsRouter from "./agents";
 import teamRouter from "./team";
+import demoRouter from "./demo";
 import { requireActiveUser, requireClerkUser } from "../middlewares/auth";
 import { getCurrentTeamMember } from "./team";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(demoRouter);
 router.use(requireClerkUser);
 router.get("/team/me", getCurrentTeamMember);
 router.use(requireActiveUser);

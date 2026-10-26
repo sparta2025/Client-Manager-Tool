@@ -163,7 +163,9 @@ router.patch("/clients/:id", async (req, res): Promise<void> => {
     (parsed.data.status !== undefined ||
       parsed.data.createdAt !== undefined ||
       parsed.data.closedAt !== undefined ||
-      parsed.data.closingSummary !== undefined)
+      parsed.data.closingSummary !== undefined ||
+      parsed.data.closingRecommendations !== undefined ||
+      parsed.data.closingOutcome !== undefined)
   ) {
     res.status(403).json({ error: "Assistants cannot change case status or closure dates" });
     return;
@@ -177,7 +179,15 @@ router.patch("/clients/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const { createdAt, closedAt, closingSummary, assignedToUserId: newAssignee, ...rest } = parsed.data;
+  const {
+    createdAt,
+    closedAt,
+    closingSummary,
+    closingRecommendations,
+    closingOutcome,
+    assignedToUserId: newAssignee,
+    ...rest
+  } = parsed.data;
   const result = await db.transaction(async (tx) => {
     const [existing] = await tx
       .select({ status: clientsTable.status })
@@ -218,6 +228,8 @@ router.patch("/clients/:id", async (req, res): Promise<void> => {
         name: "Итог дела",
         stageDate: updatedClient.closedAt,
         result: finalResult,
+        outcome: closingOutcome ?? null,
+        nextPlans: closingRecommendations?.trim() || null,
         isCompleted: true,
         closedAt: updatedClient.closedAt,
       });

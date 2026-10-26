@@ -13,21 +13,30 @@ let buildDir;
 let server;
 let baseUrl;
 let member;
+let administrator;
 let teamRouter;
 let authGuards;
 
+function selectQuery() {
+  let filtered = false;
+  const query = {
+    where: () => {
+      filtered = true;
+      return query;
+    },
+    orderBy: async () => (filtered ? [member] : [administrator, member]),
+    for: async () => [member],
+  };
+  return { from: () => query };
+}
+
 function makeTestDatabase() {
   return {
+    select: selectQuery,
     transaction: async (operation) =>
       operation({
         execute: async () => undefined,
-        select: () => ({
-          from: () => ({
-            where: () => ({
-              for: async () => [member],
-            }),
-          }),
-        }),
+        select: selectQuery,
         update: () => ({
           set: (changes) => ({
             where: () => ({
@@ -72,12 +81,18 @@ globalThis.require = __createRequire(import.meta.url);`,
     clerkUserId: "clerk-lawyer-pending",
     displayName: "Test Lawyer",
     email: "lawyer@example.test",
+    jobTitle: null,
+    phone: null,
+    profileEditedAt: null,
+    profileEditedBy: null,
+    identityEditedAt: null,
+    identityEditedBy: null,
     role: "lawyer",
     status: "pending",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   };
-  const administrator = {
+  administrator = {
     ...member,
     id: 1,
     clerkUserId: "clerk-admin",
@@ -143,8 +158,30 @@ test("approval activates a lawyer without granting administrator access", async 
   assert.deepEqual(await lawyerResponse.json(), { access: "lawyer" });
 
   const adminResponse = await fetch(`${baseUrl}/lawyer/team/members`);
-  assert.equal(adminResponse.status, 403);
-  assert.deepEqual(await adminResponse.json(), {
-    error: "Administrator access required",
+  assert.equal(adminResponse.status, 200);
+  assert.deepEqual((await adminResponse.json()).map(({ id }) => id), [member.id]);
+
+  const forbiddenEdit = await fetch(`${baseUrl}/lawyer/team/members/1`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ phone: "000" }),
   });
+  assert.equal(forbiddenEdit.status, 403);
+
+  const roleChange = await fetch(`${baseUrl}/lawyer/team/members/${member.id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ role: "admin" }),
+  });
+  assert.equal(roleChange.status, 403);
+
+  const profileEdit = await fetch(`${baseUrl}/lawyer/team/members/${member.id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jobTitle: "Юрист-консульт", phone: "+7 900 000-00-01" }),
+  });
+  assert.equal(profileEdit.status, 200);
+  const updatedProfile = await profileEdit.json();
+  assert.equal(updatedProfile.jobTitle, "Юрист-консульт");
+  assert.equal(updatedProfile.profileEditedBy, "user");
 });
