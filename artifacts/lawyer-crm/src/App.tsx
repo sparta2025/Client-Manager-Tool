@@ -115,16 +115,22 @@ function Home() {
         <section className="relative flex flex-col justify-between overflow-hidden bg-primary p-8 text-primary-foreground md:p-14">
           <div className="absolute -right-24 -top-28 h-80 w-80 rounded-full border border-white/10" />
           <div className="absolute -right-8 -top-12 h-52 w-52 rounded-full border border-white/10" />
-          <div className="relative flex items-center gap-3">
+          <img
+            src={`${basePath}/lady-justice.png`}
+            alt="Богиня правосудия с повязкой на глазах, весами и мечом"
+            data-testid="img-lady-justice"
+            className="pointer-events-none absolute right-2 top-2 z-0 h-36 w-36 object-contain opacity-90 sm:right-5 sm:top-4 sm:h-44 sm:w-44 lg:right-6 lg:top-5 lg:h-56 lg:w-56"
+          />
+          <div className="relative z-10 flex items-center gap-3">
             <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/20 bg-white/10"><BriefcaseBusiness className="h-6 w-6" /></span>
             <div><div className="font-serif text-lg">Практика</div><div className="text-[10px] uppercase tracking-[.24em] opacity-65">управление делами</div></div>
           </div>
-          <div className="relative my-16 max-w-xl">
+          <div className="relative z-10 my-16 max-w-xl">
             <p className="mb-5 text-xs font-semibold uppercase tracking-[.24em] text-[#c6d5cf]">Рабочее пространство юридической команды</p>
             <h1 className="font-serif text-5xl leading-[1.08] tracking-tight md:text-6xl">Каждое дело.<br /><em className="font-normal text-[#c8d5c7]">На своём месте.</em></h1>
             <p className="mt-7 max-w-md text-base leading-7 text-white/70">Клиентские обращения, история решений и сроки — в защищённой системе с понятной ответственностью.</p>
           </div>
-          <div className="relative flex items-center gap-3 border-t border-white/15 pt-5 text-sm text-white/65"><span className="h-2 w-2 rounded-full bg-[#bdd4c5]" />Доступ только для команды</div>
+          <div className="relative z-10 flex items-center gap-3 border-t border-white/15 pt-5 text-sm text-white/65"><span className="h-2 w-2 rounded-full bg-[#bdd4c5]" />Доступ только для команды</div>
         </section>
         <section className="flex flex-col justify-center p-8 md:p-14">
           <span className="mb-7 grid h-12 w-12 place-items-center rounded-2xl bg-accent text-accent-foreground"><CircleUserRound className="h-6 w-6" /></span>

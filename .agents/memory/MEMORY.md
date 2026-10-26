@@ -4,3 +4,4 @@
 - [CRM team access](crm-team-access.md) — роли: администратор, юрист и помощник; не-администраторы видят только назначенные дела.
 - [Workspace dependency bootstrap](workspace-dependency-bootstrap.md) — после импорта pnpm-монорепозитория сначала нужен полный frozen install, не только установка зависимостей одного пакета.
 - [API test runtime](api-test-runtime.md) — для Node-тестов API собирайте TypeScript/workspace imports через esbuild и задавайте createRequire для CommonJS-зависимостей.
+- [Replit DB targeting](replit-db-targeting.md) — не определяйте целевую базу по `REPLIT_ENVIRONMENT`; выбирайте Development или Production явно через Database tool.
