@@ -42,6 +42,20 @@ type OpenRouterModel = {
   };
 };
 
+type AiFailureCode =
+  | "AI_NOT_CONFIGURED"
+  | "AI_RATE_LIMITED"
+  | "AI_ACCESS_DENIED"
+  | "AI_UNAVAILABLE"
+  | "AI_INVALID_RESPONSE";
+
+class AiServiceError extends Error {
+  constructor(readonly code: AiFailureCode) {
+    super("AI service request failed");
+    this.name = "AiServiceError";
+  }
+}
+
 let modelsCache: { expiresAt: number; models: AiModel[] } | null = null;
 
 function resolveModel(value: unknown): string {
@@ -56,58 +70,74 @@ function resolveBodyModel(body: unknown): string {
 async function askOpenRouter(messages: ChatMessage[], model: string, attempt = 0): Promise<unknown> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    throw new Error("OPENROUTER_API_KEY is not configured");
+    throw new AiServiceError("AI_NOT_CONFIGURED");
   }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60_000);
 
   try {
-    const response = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://replit.com",
-        "X-Title": "Lawyer CRM",
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        max_tokens: 8192,
-        messages,
-      }),
-      signal: controller.signal,
-    });
+    let response: Awaited<ReturnType<typeof fetch>>;
+    try {
+      response = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://replit.com",
+          "X-Title": "Lawyer CRM",
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.2,
+          max_tokens: 8192,
+          messages,
+        }),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (attempt === 0 && !(error instanceof Error && error.name === "AbortError")) {
+        await new Promise((resolve) => setTimeout(resolve, 750));
+        return askOpenRouter(messages, model, attempt + 1);
+      }
+      throw new AiServiceError("AI_UNAVAILABLE");
+    }
 
-    const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-      error?: { message?: string };
-    };
     if (!response.ok) {
       if (attempt === 0 && (response.status === 408 || response.status === 429 || response.status >= 500)) {
         await new Promise((resolve) => setTimeout(resolve, 750));
         return askOpenRouter(messages, model, attempt + 1);
       }
-      throw new Error(payload.error?.message || `OpenRouter returned ${response.status}`);
+      if (response.status === 429) {
+        throw new AiServiceError("AI_RATE_LIMITED");
+      }
+      if (response.status === 401 || response.status === 403) {
+        throw new AiServiceError("AI_ACCESS_DENIED");
+      }
+      throw new AiServiceError("AI_UNAVAILABLE");
+    }
+
+    let payload: { choices?: Array<{ message?: { content?: string } }> };
+    try {
+      payload = (await response.json()) as typeof payload;
+    } catch {
+      throw new AiServiceError("AI_INVALID_RESPONSE");
     }
 
     const content = payload.choices?.[0]?.message?.content;
     if (!content) {
-      throw new Error("OpenRouter returned an empty response");
+      throw new AiServiceError("AI_INVALID_RESPONSE");
     }
 
     const normalized = content
       .trim()
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```$/, "");
-    return JSON.parse(normalized) as unknown;
-  } catch (error) {
-    if (attempt === 0 && !(error instanceof Error && error.name === "AbortError")) {
-      await new Promise((resolve) => setTimeout(resolve, 750));
-      return askOpenRouter(messages, model, attempt + 1);
+    try {
+      return JSON.parse(normalized) as unknown;
+    } catch {
+      throw new AiServiceError("AI_INVALID_RESPONSE");
     }
-    throw error;
   } finally {
     clearTimeout(timeout);
   }
@@ -119,6 +149,11 @@ function formatStageDate(value: Date | null): string | null {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unknown AI error";
+}
+
+function sendAiFailure(res: Response, error: unknown): void {
+  const code = error instanceof AiServiceError ? error.code : "AI_INVALID_RESPONSE";
+  res.status(502).json({ error: "Не удалось выполнить запрос к ИИ.", code });
 }
 
 router.get("/ai/models", async (_req, res): Promise<void> => {
@@ -278,7 +313,7 @@ router.post("/ai/clients/:clientId/preliminary-plan", async (req, res): Promise<
     });
     res.json(result);
   } catch (error) {
-    res.status(502).json({ error: `Не удалось составить план: ${errorMessage(error)}` });
+    sendAiFailure(res, error);
   }
 });
 
@@ -492,7 +527,7 @@ const secretaryReviewHandler = async (req: Request, res: Response): Promise<void
     });
     res.json(result);
   } catch (error) {
-    res.status(502).json({ error: `Не удалось получить напоминания: ${errorMessage(error)}` });
+    sendAiFailure(res, error);
   }
 };
 

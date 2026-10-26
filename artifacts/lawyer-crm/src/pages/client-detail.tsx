@@ -35,6 +35,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AiModelSettings } from "@/components/ai-model-settings";
 import { getSelectedAiModel } from "@/lib/ai-model-storage";
 import { useAccess } from "@/lib/access-context";
@@ -55,6 +56,47 @@ function toDateTimeLocalValue(iso?: string | null): string {
 function fromDateTimeLocalValue(value: string): string | null {
   if (!value) return null;
   return new Date(value).toISOString();
+}
+
+type AiFailureCode =
+  | "AI_NOT_CONFIGURED"
+  | "AI_RATE_LIMITED"
+  | "AI_ACCESS_DENIED"
+  | "AI_UNAVAILABLE"
+  | "AI_INVALID_RESPONSE";
+
+function getAiFailureCode(error: unknown): AiFailureCode | null {
+  if (!error || typeof error !== "object" || !("data" in error)) return null;
+  const data = error.data;
+  if (!data || typeof data !== "object" || !("code" in data)) return null;
+
+  const code = data.code;
+  switch (code) {
+    case "AI_NOT_CONFIGURED":
+    case "AI_RATE_LIMITED":
+    case "AI_ACCESS_DENIED":
+    case "AI_UNAVAILABLE":
+    case "AI_INVALID_RESPONSE":
+      return code;
+    default:
+      return null;
+  }
+}
+
+function getAiFailureHint(error: unknown): string {
+  switch (getAiFailureCode(error)) {
+    case "AI_NOT_CONFIGURED":
+      return "ИИ-помощник не настроен. Попросите администратора проверить подключение OpenRouter.";
+    case "AI_RATE_LIMITED":
+      return "Сервис ИИ временно ограничил запросы. Повторите попытку через несколько минут.";
+    case "AI_ACCESS_DENIED":
+      return "Сервис ИИ отклонил доступ. Попросите администратора проверить настройки подключения OpenRouter.";
+    case "AI_INVALID_RESPONSE":
+      return "Не удалось обработать данные дела. Проверьте, что сведения заполнены, и повторите запрос.";
+    case "AI_UNAVAILABLE":
+    default:
+      return "Сервис ИИ временно недоступен. Попробуйте позже; если ошибка повторится, попросите администратора проверить подключение.";
+  }
 }
 
 export default function ClientDetailPage() {
@@ -113,7 +155,6 @@ export default function ClientDetailPage() {
           setPreliminaryPlan(plan);
           toast.success("Предварительный план подготовлен");
         },
-        onError: () => toast.error("Не удалось подготовить план. Проверьте ключ OpenRouter и попробуйте ещё раз."),
       },
     );
   };
@@ -155,7 +196,7 @@ export default function ClientDetailPage() {
     try {
       await secretaryReview.mutateAsync({ clientId, data: { model: getSelectedAiModel() } });
     } catch {
-      toast.error("Не удалось получить напоминания секретаря");
+      // The mutation error is shown in the persistent alert below the case header.
     }
   };
 
@@ -292,6 +333,25 @@ export default function ClientDetailPage() {
             </div>
           </div>
         </div>
+
+        {(client.status === "new" && createPreliminaryPlan.isError) && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <div>
+              <AlertTitle>Не удалось подготовить предварительный план</AlertTitle>
+              <AlertDescription>{getAiFailureHint(createPreliminaryPlan.error)}</AlertDescription>
+            </div>
+          </Alert>
+        )}
+        {(client.status === "in_progress" && secretaryReview.isError) && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <div>
+              <AlertTitle>Не удалось проверить сроки</AlertTitle>
+              <AlertDescription>{getAiFailureHint(secretaryReview.error)}</AlertDescription>
+            </div>
+          </Alert>
+        )}
 
         {/* Stats Section */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-in fade-in zoom-in-95 duration-700 delay-100 fill-mode-both">
