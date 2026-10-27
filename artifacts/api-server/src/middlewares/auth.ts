@@ -51,11 +51,16 @@ function emailClaim(claims: Record<string, unknown> | null): string | null {
 
 async function ensureLocalUser(
   clerkUserId: string,
-  profile: { displayName: string | null; email: string | null },
+  profile: {
+    displayName: string | null;
+    email: string | null;
+    verifiedRecoveryEmail: string | null;
+  },
 ): Promise<CurrentAppUser> {
   const recoveryEmail = process.env.ADMIN_RECOVERY_EMAIL?.trim().toLowerCase();
   const canRecover = Boolean(
-    recoveryEmail && profile.email?.trim().toLowerCase() === recoveryEmail,
+    recoveryEmail &&
+    profile.verifiedRecoveryEmail?.trim().toLowerCase() === recoveryEmail,
   );
   const [existing] = await db
     .select()
@@ -152,21 +157,31 @@ export const requireClerkUser: RequestHandler = async (
     [firstName, lastName].filter(Boolean).join(" ") ??
     null;
   let email = emailClaim(claims);
-  if (!email && process.env.ADMIN_RECOVERY_EMAIL) {
+  let verifiedRecoveryEmail: string | null = null;
+  const recoveryEmail = process.env.ADMIN_RECOVERY_EMAIL?.trim().toLowerCase();
+  if (recoveryEmail) {
     try {
       const clerkUser = await clerkClient.users.getUser(auth.userId);
-      email =
+      const primaryEmail = clerkUser.emailAddresses.find(
+        (address) => address.id === clerkUser.primaryEmailAddressId,
+      );
+      email = email ?? primaryEmail?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress ?? null;
+      verifiedRecoveryEmail =
         clerkUser.emailAddresses.find(
-          (address) => address.id === clerkUser.primaryEmailAddressId,
-        )?.emailAddress ??
-        clerkUser.emailAddresses[0]?.emailAddress ??
-        null;
+          (address) =>
+            address.emailAddress.trim().toLowerCase() === recoveryEmail &&
+            address.verification?.status === "verified",
+        )?.emailAddress ?? null;
     } catch (error) {
       req.log.warn({ error }, "Unable to resolve Clerk email for administrator recovery");
     }
   }
 
-  req.appUser = await ensureLocalUser(auth.userId, { displayName, email });
+  req.appUser = await ensureLocalUser(auth.userId, {
+    displayName,
+    email,
+    verifiedRecoveryEmail,
+  });
   next();
 };
 
